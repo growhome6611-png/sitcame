@@ -1,0 +1,33 @@
+/* Compact camera controls, with the mode rail below the shutter. */
+.app{display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:hidden}
+.app>.stage{flex:1;min-height:120px;height:auto;touch-action:pan-y}
+.app>.plan-entry{display:none!important}
+.app>.ad-slot{flex:none}
+.app>.actions.camera-actions{flex:none;display:grid;grid-template-columns:minmax(0,1fr) 90px minmax(0,1fr);gap:16px;align-items:center;justify-content:stretch;justify-items:center;padding:12px 24px 7px;background:#fff}
+.actions .shutter{width:80px;height:80px;border:7px solid #242424;border-radius:50%;background:#fff;box-shadow:none;padding:0;transition:transform .12s,opacity .12s;touch-action:manipulation}
+.app>.actions.camera-actions #capture{width:80px;height:80px}
+.app>.actions.camera-actions #choose,.app>.actions.camera-actions #flipCamera{width:48px;height:48px;min-width:0;max-width:100%;padding:8px;border:0}
+.actions .shutter:active{transform:scale(.94)}
+.actions .camera-side{display:grid;place-items:center;width:48px;height:48px;padding:8px;background:transparent;border:0;border-radius:12px;color:#30343b;box-shadow:none}
+.camera-side svg{width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.actions .camera-side:active{background:#f0f2f5}
+.camera-action-stack{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:100%;min-width:0}
+.actions button.camera-drive-shortcut{max-width:100%;min-height:32px;padding:3px 6px;border:0;border-radius:7px;background:#eaf4ff;color:#0969ae;font-size:12px;line-height:1.2;font-weight:650;white-space:nowrap;touch-action:manipulation}
+.actions .camera-drive-shortcut:active{background:#d6eaff}
+.actions [hidden]{display:none!important}
+.camera-modes{position:relative;flex:none;background:#fff;padding:0 0 max(4px,env(safe-area-inset-bottom));overflow:hidden;touch-action:pan-x;user-select:none}
+.camera-modes:after{content:"";position:absolute;left:50%;bottom:calc(8px + max(4px,env(safe-area-inset-bottom)));width:5px;height:5px;background:#202124;border-radius:50%;transform:translateX(-50%);pointer-events:none}
+.camera-mode-track{position:relative;display:flex;width:100%;min-width:0;align-items:center;gap:24px;overflow-x:auto;scrollbar-width:none;padding:0 18px;direction:ltr;touch-action:pan-x;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-behavior:auto;overflow-anchor:none;cursor:grab}
+.camera-mode-track::-webkit-scrollbar{display:none}
+.camera-mode-track button{position:relative;flex:none;white-space:nowrap;border:0;border-radius:0;padding:10px 0 19px;background:transparent;color:#7b7e84;font-size:13px;line-height:1.3;font-weight:650;touch-action:pan-x;scroll-snap-align:center;unicode-bidi:plaintext}
+.camera-mode-track button.active{color:#202124}
+.camera-mode-track.busy{pointer-events:none;opacity:.5}
+.camera-mode-track button:focus-visible,.actions button:focus-visible{outline:2px solid #1686ea;outline-offset:2px}
+.camera-mode-track button:disabled{opacity:.5}
+.camera-startup{z-index:2;display:flex;flex-direction:column;align-items:center;gap:12px;max-width:300px;font-size:13px;line-height:1.5;color:#dbe5ef}
+.camera-spinner{width:25px;height:25px;border:2px solid #ffffff40;border-top-color:#fff;border-radius:50%;animation:camera-spin .9s linear infinite}
+.camera-error .camera-spinner{display:none}
+@keyframes camera-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.camera-spinner{animation:none}}
+@media(max-width:410px){.app>.actions.camera-actions{gap:12px;padding:8px 14px 7px}}
+@media(max-height:580px){.app>.actions.camera-actions{padding-top:7px;padding-bottom:3px}.app>.actions.camera-actions #capture{width:66px;height:66px;border-width:6px}.camera-mode-track button{padding-top:7px;font-size:12px}}

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Phiên dịch</title>
+<style>
+*{box-sizing:border-box}body{margin:0;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#24364a;background:#f4f6f8}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:wait}.screen-half{flex:1;min-height:0;display:flex;flex-direction:column;padding:10px 12px;gap:8px;overflow:auto}#person-b{background:#fff1f2;order:1;transform:rotate(180deg);border-top:1px solid #c9d3dc}#person-a{background:#f0f9ff;order:3;border-top:1px solid #c9d3dc}body.swapped #person-a{order:1;transform:rotate(180deg)}body.swapped #person-b{order:3;transform:none}.header-row{display:flex;align-items:center;gap:10px;flex:none;width:100%;max-width:700px;margin:auto}.header-row h2{margin:0;font-size:17px;white-space:nowrap}.header-row select{flex:1;min-width:0;max-width:230px;padding:7px;border:1px solid #b7c9da;border-radius:8px;background:white;margin-inline-start:auto;color:#24364a}textarea{flex:1;width:100%;max-width:700px;margin:0 auto;min-height:60px;resize:none;border:1px solid #cbd5e1;border-radius:10px;padding:12px;font-size:17px;line-height:1.4;color:#24364a;background:#fff}.controls{display:flex;gap:7px;flex:none;max-width:700px;width:100%;margin:0 auto}.controls button{min-width:0;flex:1;border:0;border-radius:8px;color:#fff;padding:10px 5px;line-height:1.25;font-size:14px;font-weight:650;white-space:normal;overflow-wrap:anywhere}.record{background:#d98b05}.translate{background:#1673d1}.read{background:#586c84}.record.recording{background:#cc3348}.panel-status{min-height:18px;line-height:1.25;margin:0 auto;max-width:700px;width:100%;font-size:12px;color:#526176}.panel-status.error{color:#a12638}#settings-bar{order:2;flex:none;padding:8px 10px;background:#1e293b;color:#fff;z-index:2;box-shadow:0 2px 8px #0002;display:flex;align-items:center;gap:8px}#settings-bar strong{flex:1;min-width:0;font-size:14px;line-height:1.2;overflow-wrap:anywhere}#settings-bar button{border:1px solid #65768c;background:#334155;color:#fff;padding:8px;border-radius:8px;flex:none;max-width:100px;font-size:12px;white-space:normal;overflow-wrap:anywhere}#close{font-size:20px!important;line-height:1;padding:6px 10px!important}.modal{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:#132438a3;padding:12px}.modal[hidden]{display:none}.modal-sheet{width:100%;max-width:460px;max-height:90dvh;overflow:auto;border-radius:14px;padding:18px;background:#fff;box-shadow:0 10px 30px #0003}.modal-top{display:flex;align-items:center;gap:8px;margin-bottom:14px}.modal-top h2{margin:0;flex:1;font-size:19px}.modal-top button{background:#e8eef6;border:0;border-radius:8px;padding:8px 12px}.config-field{display:block;margin-bottom:13px;font-size:14px;font-weight:650}.config-field input,.config-field select{display:block;width:100%;min-width:0;padding:10px;margin-top:6px;border:1px solid #b7c9da;border-radius:8px;background:#fff;color:#24364a;font-weight:400}.config-check{display:flex;align-items:center;gap:10px;margin:15px 0;font-size:14px}.config-check input{width:22px;height:22px;flex:none}.hint{font-size:12px;line-height:1.5;color:#526176;margin:10px 0}.save-config{width:100%;border:0;border-radius:8px;background:#1673d1;color:#fff;padding:12px;font-weight:700}#config-status{font-size:13px;margin-top:9px;line-height:1.4;overflow-wrap:anywhere}.error{color:#a12638}button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid #488dec;outline-offset:2px}@media(max-height:540px){.screen-half{padding:7px;gap:5px}textarea{font-size:16px;padding:8px}.controls button{padding:7px 3px}.panel-status{font-size:11px}#settings-bar{padding:5px 8px}}
+[hidden]{display:none!important}
+.voice-group{border:1px solid #d0dce8;border-radius:10px;padding:12px;margin:14px 0;min-width:0}.voice-group legend{font-weight:700;padding:0 5px;font-size:15px}.config-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px}.config-columns .config-field{min-width:0}.config-field input[type=range]{padding:0}.range-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.range-heading output{font-weight:400;flex:none;direction:ltr}.voice-actions{display:flex;gap:8px}.voice-actions button{border:1px solid #b7c9da;border-radius:8px;padding:9px;background:#eef5fc;color:#18588a;flex:1;min-width:0;font-size:13px;white-space:normal;overflow-wrap:anywhere;line-height:1.3}#voice-hint-a,#voice-hint-b{overflow-wrap:anywhere}@media(max-width:360px){.config-columns{gap:7px}}
+</style>
+<script src="voice_locales.js" defer></script>
+<script src="voice_controls_locales.js" defer></script>
+<script src="voice_translator.js" defer></script>
+</head>
+<body>
+<section id="person-b" class="screen-half">
+ <div class="header-row"><h2 id="person-b-label"></h2><select id="lang-b"></select></div>
+ <textarea id="text-b" dir="auto" maxlength="4000" spellcheck="false"></textarea>
+ <div class="controls"><button id="rec-b" class="record" type="button"></button><button id="trans-b" class="translate" type="button"></button><button id="read-b" class="read" type="button"></button></div>
+ <p id="status-b" class="panel-status" role="status" aria-live="polite"></p>
+</section>
+<nav id="settings-bar"><button id="close" type="button">‹</button><strong id="title"></strong><button id="swap" type="button"></button><button id="open-config" type="button"></button></nav>
+<section id="person-a" class="screen-half">
+ <div class="header-row"><h2 id="person-a-label"></h2><select id="lang-a"></select></div>
+ <textarea id="text-a" dir="auto" maxlength="4000" spellcheck="false"></textarea>
+ <div class="controls"><button id="rec-a" class="record" type="button"></button><button id="trans-a" class="translate" type="button"></button><button id="read-a" class="read" type="button"></button></div>
+ <p id="status-a" class="panel-status" role="status" aria-live="polite"></p>
+</section>
+<div id="settings-dialog" class="modal" role="dialog" aria-modal="true" aria-labelledby="config-title" hidden>
+ <div class="modal-sheet">
+  <div class="modal-top"><h2 id="config-title"></h2><button id="close-config" type="button">×</button></div>
+  <label class="config-field"><span id="translate-key-label"></span><input id="translate-key" type="password" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="512"></label>
+  <label class="config-field"><span id="voice-mode-label"></span><select id="voice-mode"><option value="device" id="voice-device"></option><option value="google" id="voice-google"></option></select></label>
+  <label id="tts-key-field" class="config-field"><span id="tts-key-label"></span><input id="tts-key" type="password" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="512"></label>
+  <label class="config-check"><input id="auto-read" type="checkbox"><span id="auto-read-label"></span></label>
+  <p id="config-hint" class="hint"></p>
+  <fieldset class="voice-group"><legend id="voice-title-a"></legend>
+   <div class="config-columns">
+    <label class="config-field"><span id="gender-label-a"></span><select id="gender-a"></select></label>
+    <label class="config-field"><span id="style-label-a"></span><select id="style-a"></select></label>
+   </div>
+   <label class="config-field"><span id="voice-label-a"></span><select id="voice-a"></select></label>
+   <label class="config-field"><span class="range-heading"><span id="rate-label-a"></span><output id="rate-value-a"></output></span><input id="rate-a" type="range" min="0.6" max="1.5" step="0.05"></label>
+   <label class="config-field"><span class="range-heading"><span id="pitch-label-a"></span><output id="pitch-value-a"></output></span><input id="pitch-a" type="range" min="-8" max="8" step="1"></label>
+   <div class="voice-actions"><button id="reload-voices-a" type="button"></button><button id="test-voice-a" type="button"></button></div>
+   <p id="voice-hint-a" class="hint" role="status" aria-live="polite"></p>
+  </fieldset>
+  <fieldset class="voice-group"><legend id="voice-title-b"></legend>
+   <div class="config-columns">
+    <label class="config-field"><span id="gender-label-b"></span><select id="gender-b"></select></label>
+    <label class="config-field"><span id="style-label-b"></span><select id="style-b"></select></label>
+   </div>
+   <label class="config-field"><span id="voice-label-b"></span><select id="voice-b"></select></label>
+   <label class="config-field"><span class="range-heading"><span id="rate-label-b"></span><output id="rate-value-b"></output></span><input id="rate-b" type="range" min="0.6" max="1.5" step="0.05"></label>
+   <label class="config-field"><span class="range-heading"><span id="pitch-label-b"></span><output id="pitch-value-b"></output></span><input id="pitch-b" type="range" min="-8" max="8" step="1"></label>
+   <div class="voice-actions"><button id="reload-voices-b" type="button"></button><button id="test-voice-b" type="button"></button></div>
+   <p id="voice-hint-b" class="hint" role="status" aria-live="polite"></p>
+  </fieldset>
+  <button id="save-config" class="save-config" type="button"></button>
+  <p id="config-status" role="status" aria-live="polite"></p>
+ </div>
+</div>
+</body></html>
