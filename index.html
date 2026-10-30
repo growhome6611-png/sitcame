@@ -261,6 +261,25 @@ html,body{height:100%;min-height:100%;overflow:hidden!important}
 .plan-pin{z-index:21!important;pointer-events:auto!important;-webkit-transform:translate(-50%,-100%) translateZ(0)!important;transform:translate(-50%,-100%) translateZ(0)!important;-webkit-backface-visibility:hidden;backface-visibility:hidden;}
 .plan-pin.selected{z-index:22!important;}
 </style>
+
+<style id="desktop-manager-style">
+@media(min-width:900px){
+  body{background:#edf2f7}
+  .app{max-width:980px;min-height:100vh;box-shadow:0 0 0 1px #dbe3eb}
+  .top{display:flex!important;position:sticky;top:0;z-index:40;border-bottom:1px solid #dbe3eb}
+  .top h1{font-size:20px}.top small{font-size:12px}
+  .desktop-manager{display:block;background:#fff;padding:14px 16px;border-bottom:1px solid #d8e2ec}
+  .desktop-manager-head{display:flex;gap:12px;align-items:center;justify-content:space-between}
+  .desktop-manager-head>div{display:grid;gap:3px}.desktop-manager-head strong{font-size:17px}.desktop-manager-head small{color:#64748b}
+  .desktop-manager-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:12px}
+  .desktop-manager button{min-height:42px;border:1px solid #b8d3e8;border-radius:9px;background:#edf7ff;color:#0b6ca8;font-weight:750;padding:8px 10px}
+  #desktopInstall{background:#128ce5;color:#fff;border-color:#128ce5;white-space:nowrap}
+  .desktop-manager-status{min-height:18px;margin:8px 0 0;color:#52667a;font-size:12px}.desktop-manager-status.error{color:#a32928}
+  .stage{height:min(52vh,560px)!important;aspect-ratio:auto!important;min-height:360px!important}
+  .camera-main-actions{position:relative}
+}
+@media(max-width:899px){.desktop-manager{display:none!important}}
+</style>
 </head><body><div class="app"><header class="top"><div><h1 data-i="app"></h1><small data-i="subtitle"></small></div><button id="openSettings" type="button" class="settings-shortcut" data-i-aria="settings" aria-label="Cài đặt">⚙</button><select id="lang" class="hidden" aria-label="Language"><option value="vi">Tiếng Việt</option><option value="en">English</option><option value="zh">中文</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="th">ภาษาไทย</option><option value="hi">हिन्दी</option><option value="ar">العربية</option><option value="pt">Português</option><option value="es">Español</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="ru">Русский</option></select></header><div class="drive-bar"><label for="driveLink" data-i="driveDestination"></label><input id="driveLink" type="url" inputmode="url" autocomplete="url" placeholder="https://drive.google.com/drive/folders/..."><div class="drive-actions"><button id="openDrive" type="button" data-i="openDrive"></button><button id="chooseUpload" type="button" data-i="chooseUpload"></button></div><p class="drive-note" data-i="driveManualHint"></p><input id="uploadPicker" type="file" accept="image/*" multiple hidden></div><div class="project-bar"><span data-i="currentSite"></span><select id="siteSelect" aria-label="Project"></select><button id="editSites" type="button" data-i="editSites"></button></div><div class="plan-entry"><button id="openPlan" type="button" data-i="openPlan"></button><span id="planSummary" data-i="planNone"></span></div><div id="adSlot" class="ad-slot" aria-hidden="true"></div><div class="stage" id="stage"><button id="flash" type="button" class="flash-btn" aria-pressed="false" style="display:none">⚡</button><div id="stageHint" class="stage-hint" aria-live="polite"></div><button id="stageMeter" type="button" class="stage-meter" aria-label="Thay đổi mức thu phóng">1.0× · ☀ 100%</button><div id="brightnessRail" class="brightness-rail" aria-label="Vuốt để chỉnh độ sáng">☀</div><canvas id="previewCanvas" class="preview-canvas hidden"></canvas><div id="focusRing" class="focus-ring hidden"></div><div id="stampTouch" class="stamp-touch hidden" role="button" tabindex="0" aria-label="Watermark settings"></div><div id="markerTouch" class="marker-touch hidden" role="button" tabindex="0" aria-label="Photo reference settings"></div><video id="video" autoplay playsinline muted class="hidden"></video><img id="photo" class="hidden" alt="Preview"><div class="empty" id="empty" data-i="empty"></div><div id="stamp" class="stamp" role="button" tabindex="0" aria-label="Chạm để chỉnh dấu ảnh"><div id="stampHead" class="stamp-head"><div id="stampLogo" class="stamp-logo">DH</div><div id="stampTitle" class="stamp-title"></div></div><div id="stampBody" class="stamp-body"></div><div id="stampCount" class="stamp-count"></div></div></div><div class="camera-tools"><label><span data-i="zoom"></span><output id="zoomValue">1.0×</output><input id="zoom" type="range" min="1" max="10" step="0.1" value="1"></label><label><span data-i="brightness"></span><output id="brightnessValue">100%</output><input id="brightness" type="range" min="50" max="180" step="5" value="100"></label><button id="resetView" type="button" data-i="resetView"></button></div><div id="status" class="status" role="status"></div><div class="actions camera-main-actions">
 <button id="openPlanQuick" type="button" class="camera-side-icon" aria-label="Mặt bằng và ghim ảnh" title="Mặt bằng và ghim ảnh"><svg width="35" height="35" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M5 6l10-3 11 3 9-3v29l-9 3-11-3-10 3z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M15 3v29M26 6v29" stroke="currentColor" stroke-width="1.7" opacity=".65"/><path d="M26 8c-5 0-9 3.9-9 8.7C17 23 26 32 26 32s9-9 9-15.3C35 11.9 31 8 26 8z" fill="#f97316" stroke="white" stroke-width="1.2"/><circle cx="26" cy="17" r="3.1" fill="white"/></svg></button>
 <button id="capture" class="shutter" aria-label="Chụp ảnh"></button>
@@ -3032,7 +3051,7 @@ window.androidSaveResult=function(ok,message){
   const display=raw.startsWith('Đã tự lưu ảnh')?t('localPhotoSaved'):raw.startsWith('Đã lưu: ')?t('fileSaved',{name:raw.slice(8)}):raw==='Đã hủy lưu tệp.'?t('saveCancelled'):ok?t('localPhotoSaved'):t('saveError');
   box.textContent=display;box.className='status'+(ok?'':' error');box.style.display='block';
 };
-</script><script src="web_drive_config.js"></script><script async src="https://accounts.google.com/gsi/client"></script><script src="drive_photos.js"></script><script src="cloud_sync.js"></script><script src="voice_entry.js"></script><script>
+</script><script src="web_drive_config.js"></script><script async src="https://accounts.google.com/gsi/client"></script><script src="drive_photos.js"></script><script src="cloud_sync.js"></script><script src="desktop_manager.js"></script><script src="voice_entry.js"></script><script>
 // v56 quick shortcuts; preserve original handlers and multilingual text.
 (function(){
   const plan=document.getElementById('openPlanQuick'),drive=document.getElementById('openDriveQuick'),captureText=document.getElementById('captureText');
