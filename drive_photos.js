@@ -356,7 +356,10 @@ window.SiteCamSharedDrive={
   if(!WEB_DRIVE) return;
   const $=id=>document.getElementById(id);
   const M=(vi,en,zh)=>app.state.lang==='vi'?vi:app.state.lang==='zh'?zh:en;
-  const savedKey='sitecam_shared_plan_drive_folder_v636';
+  const savedKey='sitecam_shared_plan_drive_folder_v640';
+  const currentProjectIndex=()=>Math.max(0,Number(app.state.currentProject)||0);
+  const currentSite=()=>app.state.projects?.[currentProjectIndex()]||null;
+  const projectStorageKey=()=>savedKey+'_p'+currentProjectIndex();
 
   function parseSharedFolder(value){
     const u=new URL(String(value||'').trim());
@@ -422,10 +425,12 @@ window.SiteCamSharedDrive={
   document.head.append(css);
 
   const input=$('sharedPlanFolderUrl'),select=$('sharedPlanSelect'),status=$('sharedPlanStatus'),loadBtn=$('sharedPlanLoad'),importBtn=$('sharedPlanImport');
-  try{input.value=localStorage.getItem(savedKey)||''}catch(_){}
   let files=[];
   function setStatus(text,error=false){status.textContent=text||'';status.dataset.error=String(!!error)}
-  input.addEventListener('change',()=>{try{localStorage.setItem(savedKey,input.value.trim())}catch(_){}files=[];select.disabled=true;importBtn.disabled=true;setStatus('')});
+  function refreshProject(){const site=currentSite();let value=site?.drawingFolderUrl||'';if(!value){try{value=localStorage.getItem(projectStorageKey())||''}catch(_){}}input.value=value;files=[];select.replaceChildren();const o=document.createElement('option');o.textContent=M('Chưa đọc thư mục','Folder not loaded','尚未读取文件夹');select.append(o);select.disabled=true;importBtn.disabled=true;setStatus(site?.name?M('Thư viện bản vẽ của: ','Drawing library for: ','图纸库：')+site.name:'')}
+  input.addEventListener('change',()=>{const value=input.value.trim(),site=currentSite();if(site){site.drawingFolderUrl=value;app.persist()}try{localStorage.setItem(projectStorageKey(),value)}catch(_){}files=[];select.disabled=true;importBtn.disabled=true;setStatus('')});
+  refreshProject();
+  window.SiteCamSharedPlanLibrary={refreshProject};
   $('sharedPlanConnect').onclick=async()=>{
     try{setStatus(M('Đang mở Google…','Opening Google…','正在打开 Google…'));await ensureAuth(true);setStatus(M('Đã kết nối Google. Bấm Đọc thư mục.','Google connected. Tap Load folder.','已连接 Google，请点击读取文件夹。'))}catch(e){setStatus(String(e.message||e),true)}
   };
@@ -433,7 +438,7 @@ window.SiteCamSharedDrive={
   loadBtn.onclick=async()=>{
     loadBtn.disabled=true; importBtn.disabled=true; select.disabled=true;
     try{
-      const folder=parseSharedFolder(input.value);try{localStorage.setItem(savedKey,input.value.trim())}catch(_){}
+      const folder=parseSharedFolder(input.value);const site=currentSite();if(site){site.drawingFolderUrl=input.value.trim();app.persist()}try{localStorage.setItem(projectStorageKey(),input.value.trim())}catch(_){}
       await ensureAuth(true);
       setStatus(M('Đang đọc danh sách bản vẽ…','Loading drawing list…','正在读取图纸列表…'));
       files=await window.SiteCamSharedDrive.listPdfs(folder);
