@@ -1,8 +1,8 @@
-const CACHE = 'sitecam-v6.3.6';
+const CACHE = 'sitecam-v6.3.7';
 const APP_SHELL = [
   '/', '/index.html', '/manifest.webmanifest',
   '/camera_ui.css','/camera_ui.js','/contractor_stats.js','/web_drive_config.js','/drive_photos.js',
-  '/handover.js','/handover_merge.js','/photo_geometry.js','/ui_locales.js',
+  '/handover.js','/handover_merge.js','/photo_geometry.js','/ui_locales.js','/cloud_sync.js',
   '/voice_controls_locales.js','/voice_entry.js','/voice_locales.js',
   '/voice_translator.html','/voice_translator.js','/dong_hui_logo.png',
   '/icons/sitecam-192.png','/icons/sitecam-512.png','/icons/apple-touch-icon.png'
