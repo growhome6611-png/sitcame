@@ -65,6 +65,70 @@ async function putFile(parentId,name,blob){
 }
 async function downloadFile(id){await ensureAuth(true);const r=await fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'?alt=media',{headers:authHeader()});if(!r.ok)throw Error('HTTP '+r.status+' '+await r.text());return r.blob()}
 
+// v6.4.1 - sync the per-project Drive links and project names across devices.
+const PROJECT_SETTINGS_FILE='sitecam_projects_config.json';
+async function findNamedFile(parentId,name){
+  await ensureAuth(true);
+  const q=`'${String(parentId).replace(/'/g,"\\'")}' in parents and name='${String(name).replace(/'/g,"\\'")}' and trashed=false`;
+  const p=new URLSearchParams({q,pageSize:'10',fields:'files(id,name,modifiedTime,mimeType)'});
+  const r=await fetch('https://www.googleapis.com/drive/v3/files?'+p,{headers:authHeader()});
+  if(!r.ok)throw Error('HTTP '+r.status+' '+await r.text());
+  return (await r.json()).files?.[0]||null;
+}
+async function putProjectSettings(parentId){
+  const projects=(app.state.projects||[]).map((p,index)=>({
+    index,
+    name:String(p?.name||`Công trình ${String(index+1).padStart(2,'0')}`),
+    folderUrl:String(p?.folderUrl||''),
+    drawingFolderUrl:String(p?.drawingFolderUrl||'')
+  }));
+  const payload={schema:1,updatedAt:new Date().toISOString(),projects};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const found=await findNamedFile(parentId,PROJECT_SETTINGS_FILE);
+  const boundary='sitecam_settings_'+crypto.randomUUID().replace(/-/g,'');
+  const meta=found?{name:PROJECT_SETTINGS_FILE}:{name:PROJECT_SETTINGS_FILE,parents:[parentId]};
+  const body=new Blob([
+    '--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',JSON.stringify(meta),
+    '\r\n--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',blob,
+    '\r\n--'+boundary+'--'
+  ],{type:'multipart/related; boundary='+boundary});
+  const url=found
+    ?'https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(found.id)+'?uploadType=multipart&fields=id,name,modifiedTime'
+    :'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime';
+  const r=await fetch(url,{method:found?'PATCH':'POST',headers:{...authHeader(),'Content-Type':'multipart/related; boundary='+boundary},body});
+  if(!r.ok)throw Error('HTTP '+r.status+' '+await r.text());
+  return r.json();
+}
+async function pullProjectSettings(parentId){
+  const found=await findNamedFile(parentId,PROJECT_SETTINGS_FILE);
+  if(!found)return 0;
+  const r=await fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(found.id)+'?alt=media',{headers:authHeader()});
+  if(!r.ok)throw Error('HTTP '+r.status+' '+await r.text());
+  const data=await r.json();
+  if(!Array.isArray(data?.projects))return 0;
+  const local=app.state.projects||[];
+  let changed=0;
+  for(const remote of data.projects){
+    const i=Number(remote?.index);
+    if(!Number.isInteger(i)||i<0||i>=local.length)continue;
+    const p=local[i]||{};
+    const nextName=String(remote?.name||'').trim();
+    const nextFolder=String(remote?.folderUrl||'').trim();
+    const nextDrawing=String(remote?.drawingFolderUrl||'').trim();
+    if(nextName&&p.name!==nextName){p.name=nextName;changed++}
+    if(p.folderUrl!==nextFolder){p.folderUrl=nextFolder;changed++}
+    if(p.drawingFolderUrl!==nextDrawing){p.drawingFolderUrl=nextDrawing;changed++}
+    local[i]=p;
+    try{localStorage.setItem('sitecam_shared_plan_drive_folder_v640_p'+i,nextDrawing)}catch(_){}
+  }
+  if(changed){
+    app.state.projects=local;app.persist();
+    window.fieldPlan?.projectChanged?.();
+    window.SiteCamSharedPlanLibrary?.refreshProject?.();
+  }
+  return changed;
+}
+
 const panel=document.createElement('section');panel.className='panel sitecam-sync-panel';panel.innerHTML=`
 <h2>☁ <span id="syncTitle">${M('Tài khoản & đồng bộ','Account & sync','账号与同步')}</span></h2>
 <p class="note">${M('Đăng nhập Google để đồng bộ toàn bộ dự án giữa điện thoại và máy tính.','Sign in with Google to sync complete projects between phone and computer.','登录 Google，在手机和电脑之间同步完整项目。')}</p>
@@ -79,11 +143,11 @@ document.head.append(style);
 const $=id=>document.getElementById(id);function status(t,e=false){const n=$('syncStatus');n.textContent=t||'';n.style.color=e?'#a52222':''}
 function updateAccount(){const signed=!!email;$('syncAccount').textContent=signed?M('Đã đăng nhập: ','Signed in: ','已登录：')+email:M('Chưa đăng nhập Google','Not signed in','尚未登录 Google');$('syncLogin').hidden=signed;$('syncLogout').hidden=!signed;$('syncUpload').disabled=false;$('syncRefresh').disabled=false}
 function renderFiles(){const sel=$('syncFiles');sel.replaceChildren();for(const f of files){const o=document.createElement('option');o.value=f.id;o.textContent=`${f.name} · ${new Date(f.modifiedTime||Date.now()).toLocaleString()}`;sel.append(o)}sel.disabled=!files.length;$('syncDownload').disabled=!files.length}
-async function refreshList(){await ensureAuth(true);status(M('Đang đọc dữ liệu đồng bộ…','Loading sync packages…','正在读取同步包…'));const folder=await ensureFolder('SiteCam Sync');files=await listFiles(folder.id);renderFiles();status(files.length?M(`Có ${files.length} bản đồng bộ.`,`Found ${files.length} sync package(s).`,`找到 ${files.length} 个同步包。`):M('Chưa có dữ liệu đồng bộ trên Drive.','No sync package on Drive yet.','Drive 中暂无同步包。'))}
+async function refreshList(){await ensureAuth(true);status(M('Đang đọc dữ liệu đồng bộ và link Drive của các công trình…','Loading sync packages and project Drive links…','正在读取同步包和各项目 Drive 链接…'));const folder=await ensureFolder('SiteCam Sync');const settingsChanged=await pullProjectSettings(folder.id);files=await listFiles(folder.id);renderFiles();const base=files.length?M(`Có ${files.length} bản đồng bộ.`,`Found ${files.length} sync package(s).`,`找到 ${files.length} 个同步包。`):M('Chưa có dữ liệu đồng bộ trên Drive.','No sync package on Drive yet.','Drive 中暂无同步包。');const extra=settingsChanged?M(` Đã cập nhật ${settingsChanged} thông tin công trình/link Drive.`,` Updated ${settingsChanged} project/Drive-link field(s).`,` 已更新 ${settingsChanged} 项工程/Drive 链接信息。`):'';status(base+extra)}
 $('syncLogin').onclick=async()=>{try{status(M('Đang mở Google…','Opening Google…','正在打开 Google…'));await signIn(true);status(M('Đăng nhập Google thành công.','Google sign-in successful.','Google 登录成功。'))}catch(e){status(String(e.message||e),true)}};
 $('syncLogout').onclick=()=>signOut();
 $('syncRefresh').onclick=()=>refreshList().catch(e=>status(String(e.message||e),true));
-$('syncUpload').onclick=async()=>{const b=$('syncUpload');b.disabled=true;try{await ensureAuth(true);status(M('Đang đóng gói PDF, ghim và ảnh…','Packaging PDFs, pins and photos…','正在打包 PDF、标记和照片…'));const pack=await window.fieldPlan?.createCloudPackage?.();if(!pack?.blob)throw Error(M('Không tạo được gói dự án.','Could not create project package.','无法创建项目包。'));const folder=await ensureFolder('SiteCam Sync');const name=`SiteCam_${safe(projectName())}_latest.zip`;status(M('Đang tải gói dự án lên Google Drive…','Uploading project package to Google Drive…','正在上传项目包到 Google Drive…'));await putFile(folder.id,name,pack.blob);status(M('Đã đồng bộ dự án lên Google Drive.','Project synced to Google Drive.','项目已同步到 Google Drive。'));await refreshList()}catch(e){status(String(e.message||e),true)}finally{b.disabled=false}};
+$('syncUpload').onclick=async()=>{const b=$('syncUpload');b.disabled=true;try{await ensureAuth(true);status(M('Đang đồng bộ danh sách công trình và link Drive…','Syncing project list and Drive links…','正在同步项目列表和 Drive 链接…'));const folder=await ensureFolder('SiteCam Sync');await putProjectSettings(folder.id);status(M('Đang đóng gói PDF, ghim và ảnh…','Packaging PDFs, pins and photos…','正在打包 PDF、标记和照片…'));const pack=await window.fieldPlan?.createCloudPackage?.();if(!pack?.blob)throw Error(M('Không tạo được gói dự án.','Could not create project package.','无法创建项目包。'));const name=`SiteCam_${safe(projectName())}_latest.zip`;status(M('Đang tải gói dự án lên Google Drive…','Uploading project package to Google Drive…','正在上传项目包到 Google Drive…'));await putFile(folder.id,name,pack.blob);status(M('Đã đồng bộ dự án và các link Drive lên Google Drive.','Project and Drive links synced to Google Drive.','项目和 Drive 链接已同步到 Google Drive。'));await refreshList()}catch(e){status(String(e.message||e),true)}finally{b.disabled=false}};
 $('syncDownload').onclick=async()=>{const f=files.find(x=>x.id===$('syncFiles').value);if(!f)return;const b=$('syncDownload');b.disabled=true;try{await ensureAuth(true);status(M('Đang tải dữ liệu dự án…','Downloading project data…','正在下载项目数据…'));const blob=await downloadFile(f.id);const file=new File([blob],f.name,{type:'application/zip',lastModified:Date.now()});await window.fieldPlan?.receiveCloudPackage?.(file);status(M('Đã tải gói dự án. Chọn Nhập mới hoặc Ghép trong hộp thoại.','Project package downloaded. Choose Import or Merge in the dialog.','项目包已下载，请在弹窗中选择导入或合并。'))}catch(e){status(String(e.message||e),true)}finally{b.disabled=false}};
 window.SiteCamAccountSync={signIn,signOut,refresh:refreshList,get account(){return email}};updateAccount();renderFiles();
 })();
