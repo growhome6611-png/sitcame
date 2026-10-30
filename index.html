@@ -2943,16 +2943,44 @@ window.fieldHandoverUI=FieldHandover.install({project,notice,commit:commitHandov
 });
 window.fieldHandoverUI.render();
 $('planReport').onclick=()=>openReportConfirm('pdf');$('planReportImages').onclick=()=>openReportConfirm('images');$('planExcel').onclick=()=>openReportConfirm('excel');
-async function createCloudPackage(){
- const selected=$('planSelect').value||activeId(),candidates=registry().filter(p=>p.project===project()),ids=new Set(candidates.map(p=>p.id)),items=pins().filter(p=>p.project===project()&&ids.has(p.planId));
+async function createCloudPackage(targetProject=project()){
+ const target=Number(targetProject);
+ const candidates=registry().filter(p=>p.project===target),ids=new Set(candidates.map(p=>p.id)),items=pins().filter(p=>p.project===target&&ids.has(p.planId));
  if(!candidates.length)throw Error(M('Công trình chưa có bản vẽ để đồng bộ.','This project has no drawing to sync.','此项目没有可同步的图纸。'));
  const next={...app.state,planRegistry:registry().map(p=>ids.has(p.id)?{...p,handoverOriginId:p.handoverOriginId||FieldHandover.newId()}:p),planPins:pins().map(p=>items.some(x=>x.id===p.id)?{...p,handoverOriginId:p.handoverOriginId||FieldHandover.newId()}:p)};
  try{persistChecked(next)}catch(_){}app.persist();
- const input={projectName:app.state.projects[project()]?.name||'Project',contractor:'',plans:registry().filter(p=>ids.has(p.id)).map(p=>({...p})),pins:pins().filter(p=>items.some(x=>x.id===p.id)).map(p=>JSON.parse(JSON.stringify(p))),read:get};
+ const input={projectName:app.state.projects[target]?.name||`Công trình ${String(target+1).padStart(2,'0')}`,contractor:'',plans:registry().filter(p=>ids.has(p.id)).map(p=>({...p})),pins:pins().filter(p=>items.some(x=>x.id===p.id)).map(p=>JSON.parse(JSON.stringify(p))),read:get};
  return FieldHandover.build(input,window.JSZip)
 }
+async function restoreCloudPackageExact(file){
+ if(!file)throw Error(M('Không có gói đồng bộ.','No sync package supplied.','没有同步包。'));
+ const pack=await FieldHandover.inspect(file,window.JSZip),sourceName=String(pack.manifest?.project?.name||'').trim()||'Công trình';
+ let target=(app.state.projects||[]).findIndex(p=>String(p?.name||'').trim().toLocaleLowerCase()===sourceName.toLocaleLowerCase());
+ if(target<0){app.state.projects=Array.isArray(app.state.projects)?app.state.projects:[];app.state.projects.push({name:sourceName,folderUrl:'',drawingFolderUrl:''});target=app.state.projects.length-1}
+ const oldPlans=registry().filter(p=>p.project===target),oldPlanIds=new Set(oldPlans.map(p=>p.id)),oldPins=pins().filter(p=>p.project===target||oldPlanIds.has(p.planId));
+ for(const meta of oldPlans)await removeStored('plans',meta.id).catch(()=>{});
+ for(const pin of oldPins){await removeStored('photos',pin.id).catch(()=>{});await removeStored('photos',pin.id+':after').catch(()=>{})}
+ const newPlans=[],newPins=[];
+ for(const meta of pack.manifest.plans){
+   const payload=pack.payload.get(meta.file);if(!payload?.bytes)throw Error(M('Gói đồng bộ thiếu dữ liệu PDF.','Sync package is missing PDF data.','同步包缺少 PDF 数据。'));
+   const plan={id:String(meta.id),name:String(meta.name||'Drawing'),project:target,pages:Number(meta.pages)||1,handoverOriginId:meta.originId||''};
+   await put('plans',{id:plan.id,bytes:payload.bytes.slice().buffer,name:plan.name,project:target});newPlans.push(plan)
+ }
+ for(const raw of pack.manifest.pins||[]){
+   const pin=JSON.parse(JSON.stringify(raw));delete pin.before;delete pin.after;delete pin.base;pin.project=target;pin.photoName='';pin.afterName='';
+   if(raw.before){const media=pack.payload.get(raw.before.file);if(media?.bytes){pin.photoName=String(raw.before.name||raw.before.file.split('/').pop());await put('photos',{id:pin.id,blob:new Blob([media.bytes],{type:media.mime}),fileName:pin.photoName})}}
+   if(raw.after){const media=pack.payload.get(raw.after.file);if(media?.bytes){pin.afterName=String(raw.after.name||raw.after.file.split('/').pop());await put('photos',{id:pin.id+':after',blob:new Blob([media.bytes],{type:media.mime}),fileName:pin.afterName})}}
+   newPins.push(pin)
+ }
+ app.state.planRegistry=[...registry().filter(p=>p.project!==target),...newPlans];
+ app.state.planPins=[...pins().filter(p=>p.project!==target&&!oldPlanIds.has(p.planId)),...newPins];
+ app.state.planActive=app.state.planActive&&typeof app.state.planActive==='object'?app.state.planActive:{};app.state.planActive[target]=newPlans[0]?.id||null;app.persist();
+ if(target===project()){pdfDoc=null;currentPlan=null;selectedPin=null;activePin=null;updatePlanLiveNote('',false);$('planDetail').classList.add('hidden');planOptions();if(newPlans[0]?.id)await loadPlan(newPlans[0].id);else renderPins()}
+ syncProjectSelectors(project());window.SiteCamSharedPlanLibrary?.refreshProject?.();window.fieldCloud?.projectChanged?.();
+ return {projectIndex:target,projectName:sourceName,plans:newPlans.length,pins:newPins.length,photos:(pack.photoCount||0)}
+}
 async function receiveCloudPackage(file){return window.fieldHandoverUI.receive(file)}
-window.fieldPlan={close:closePlan,get activePin(){return activePin},photoSaved,getRecord:get,putRecord:put,removeRecord:removeStored,importPdfFile:importPdf,createCloudPackage,receiveCloudPackage,refreshCloud(){summary();if(!dialog.classList.contains('hidden')){planOptions();if(activeId()&&(!pdfDoc||currentPlan?.id!==activeId()))loadPlan(activeId());else renderPins()}},renderLanguage:localize,projectChanged(){summary();window.fieldCloud?.projectChanged();refreshPlanProjectSelect();window.SiteCamSharedPlanLibrary?.refreshProject?.();if(!dialog.classList.contains('hidden')){pdfDoc=null;currentPlan=null;selectedPin=null;updatePlanLiveNote('',false);$('planDetail').classList.add('hidden');planOptions();if(activeId())loadPlan(activeId())}}};if(!app.state.pinSeverityStyleV35){app.state.planPinStyle={...app.state.planPinStyle,shape:'severity',criticalShape:'triangle'};app.state.pinSeverityStyleV35=true;app.persist()}localize();summary();
+window.fieldPlan={close:closePlan,get activePin(){return activePin},photoSaved,getRecord:get,putRecord:put,removeRecord:removeStored,importPdfFile:importPdf,createCloudPackage,restoreCloudPackageExact,receiveCloudPackage,refreshCloud(){summary();if(!dialog.classList.contains('hidden')){planOptions();if(activeId()&&(!pdfDoc||currentPlan?.id!==activeId()))loadPlan(activeId());else renderPins()}},renderLanguage:localize,projectChanged(){summary();window.fieldCloud?.projectChanged();refreshPlanProjectSelect();window.SiteCamSharedPlanLibrary?.refreshProject?.();if(!dialog.classList.contains('hidden')){pdfDoc=null;currentPlan=null;selectedPin=null;updatePlanLiveNote('',false);$('planDetail').classList.add('hidden');planOptions();if(activeId())loadPlan(activeId())}}};if(!app.state.pinSeverityStyleV35){app.state.planPinStyle={...app.state.planPinStyle,shape:'severity',criticalShape:'triangle'};app.state.pinSeverityStyleV35=true;app.persist()}localize();summary();
 })();
 
 </script>
