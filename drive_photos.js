@@ -400,7 +400,10 @@ window.SiteCamSharedDrive={
       <label class="shared-plan-select-label">${M('Chọn bản vẽ PDF','Choose PDF drawing','选择 PDF 图纸')}
         <select id="sharedPlanSelect" disabled><option>${M('Chưa đọc thư mục','Folder not loaded','尚未读取文件夹')}</option></select>
       </label>
-      <button id="sharedPlanImport" class="shared-plan-import" type="button" disabled>${M('Nhập bản vẽ vào SiteCam','Import drawing into SiteCam','导入图纸到 SiteCam')}</button>
+      <div class="shared-plan-import-actions">
+        <button id="sharedPlanImport" class="shared-plan-import" type="button" disabled>${M('Nhập bản vẽ vào SiteCam','Import drawing into SiteCam','导入图纸到 SiteCam')}</button>
+        <button id="sharedPlanImportAll" class="shared-plan-import shared-plan-import-all" type="button" disabled>${M('Nhập toàn bộ bản vẽ','Import all drawings','导入全部图纸')}</button>
+      </div>
       <p id="sharedPlanStatus" class="shared-plan-status" role="status" aria-live="polite"></p>
     </div>`;
   const top=document.querySelector('#planDialog .plan-top');
@@ -416,7 +419,9 @@ window.SiteCamSharedDrive={
   #sharedPlanFolderUrl,#sharedPlanSelect{box-sizing:border-box;width:100%;min-height:42px;padding:8px 10px;border:1px solid #c7d9e7;border-radius:8px;background:#fff;font-size:14px}
   .shared-plan-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
   .shared-plan-actions button,.shared-plan-import{min-height:42px;border:1px solid #b9d3e6;border-radius:8px;background:#eef8ff;color:#126b9c;font-weight:700;padding:8px}
+  .shared-plan-import-actions{display:grid;grid-template-columns:1fr;gap:8px}
   .shared-plan-import{background:#148cdf;color:#fff;border-color:#148cdf}
+  .shared-plan-import-all{background:#0f7fc9;border-color:#0f7fc9}
   .shared-plan-actions button:disabled,.shared-plan-import:disabled{opacity:.5}
   .shared-plan-select-label{display:grid;gap:5px;font-size:13px;font-weight:700;color:#4b6679}
   .shared-plan-status[data-error="true"]{color:#a52222}
@@ -424,11 +429,11 @@ window.SiteCamSharedDrive={
   `;
   document.head.append(css);
 
-  const input=$('sharedPlanFolderUrl'),select=$('sharedPlanSelect'),status=$('sharedPlanStatus'),loadBtn=$('sharedPlanLoad'),importBtn=$('sharedPlanImport');
+  const input=$('sharedPlanFolderUrl'),select=$('sharedPlanSelect'),status=$('sharedPlanStatus'),loadBtn=$('sharedPlanLoad'),importBtn=$('sharedPlanImport'),importAllBtn=$('sharedPlanImportAll');
   let files=[];
   function setStatus(text,error=false){status.textContent=text||'';status.dataset.error=String(!!error)}
-  function refreshProject(){const site=currentSite();let value=site?.drawingFolderUrl||'';if(!value){try{value=localStorage.getItem(projectStorageKey())||''}catch(_){}}input.value=value;files=[];select.replaceChildren();const o=document.createElement('option');o.textContent=M('Chưa đọc thư mục','Folder not loaded','尚未读取文件夹');select.append(o);select.disabled=true;importBtn.disabled=true;setStatus(site?.name?M('Thư viện bản vẽ của: ','Drawing library for: ','图纸库：')+site.name:'')}
-  input.addEventListener('change',()=>{const value=input.value.trim(),site=currentSite();if(site){site.drawingFolderUrl=value;app.persist()}try{localStorage.setItem(projectStorageKey(),value)}catch(_){}files=[];select.disabled=true;importBtn.disabled=true;setStatus('')});
+  function refreshProject(){const site=currentSite();let value=site?.drawingFolderUrl||'';if(!value){try{value=localStorage.getItem(projectStorageKey())||''}catch(_){}}input.value=value;files=[];select.replaceChildren();const o=document.createElement('option');o.textContent=M('Chưa đọc thư mục','Folder not loaded','尚未读取文件夹');select.append(o);select.disabled=true;importBtn.disabled=true;importAllBtn.disabled=true;setStatus(site?.name?M('Thư viện bản vẽ của: ','Drawing library for: ','图纸库：')+site.name:'')}
+  input.addEventListener('change',()=>{const value=input.value.trim(),site=currentSite();if(site){site.drawingFolderUrl=value;app.persist()}try{localStorage.setItem(projectStorageKey(),value)}catch(_){}files=[];select.disabled=true;importBtn.disabled=true;importAllBtn.disabled=true;setStatus('')});
   refreshProject();
   window.SiteCamSharedPlanLibrary={refreshProject};
   $('sharedPlanConnect').onclick=async()=>{
@@ -436,7 +441,7 @@ window.SiteCamSharedDrive={
   };
   $('sharedPlanOpen').onclick=()=>{try{location.href=parseSharedFolder(input.value).url}catch(e){setStatus(String(e.message||e),true)}};
   loadBtn.onclick=async()=>{
-    loadBtn.disabled=true; importBtn.disabled=true; select.disabled=true;
+    loadBtn.disabled=true; importBtn.disabled=true; importAllBtn.disabled=true; select.disabled=true;
     try{
       const folder=parseSharedFolder(input.value);const site=currentSite();if(site){site.drawingFolderUrl=input.value.trim();app.persist()}try{localStorage.setItem(projectStorageKey(),input.value.trim())}catch(_){}
       await ensureAuth(true);
@@ -445,12 +450,12 @@ window.SiteCamSharedDrive={
       select.replaceChildren();
       if(!files.length){const o=document.createElement('option');o.textContent=M('Không có PDF trong thư mục','No PDFs in this folder','文件夹中没有 PDF');select.append(o);setStatus(M('Thư mục không có file PDF.','This folder contains no PDF files.','文件夹中没有 PDF 文件。'));return}
       for(const f of files){const o=document.createElement('option');o.value=f.id;o.textContent=f.name+(f.size?` · ${(Number(f.size)/1048576).toFixed(1)} MB`:'');select.append(o)}
-      select.disabled=false;importBtn.disabled=false;setStatus(M(`Đã tìm thấy ${files.length} bản vẽ PDF.`,`Found ${files.length} PDF drawings.`,`找到 ${files.length} 个 PDF 图纸。`));
-    }catch(e){setStatus(String(e.message||e),true)}finally{loadBtn.disabled=false}
+      select.disabled=false;importBtn.disabled=false;importAllBtn.disabled=false;setStatus(M(`Đã tìm thấy ${files.length} bản vẽ PDF.`,`Found ${files.length} PDF drawings.`,`找到 ${files.length} 个 PDF 图纸。`));
+    }catch(e){setStatus(String(e.message||e),true)}finally{loadBtn.disabled=false;if(files.length){importBtn.disabled=false;importAllBtn.disabled=false}}
   };
   importBtn.onclick=async()=>{
     const fileMeta=files.find(f=>f.id===select.value); if(!fileMeta)return;
-    importBtn.disabled=true;
+    importBtn.disabled=true; importAllBtn.disabled=true;
     try{
       setStatus(M(`Đang tải ${fileMeta.name}…`,`Downloading ${fileMeta.name}…`,`正在下载 ${fileMeta.name}…`));
       const blob=await window.SiteCamSharedDrive.downloadPdf(fileMeta);
@@ -458,6 +463,32 @@ window.SiteCamSharedDrive={
       if(!window.fieldPlan?.importPdfFile) throw Error(M('Bản SiteCam này chưa hỗ trợ nhập PDF từ Drive.','This SiteCam build cannot import PDF from Drive.','此 SiteCam 版本不支持从 Drive 导入 PDF。'));
       await window.fieldPlan.importPdfFile(file);
       setStatus(M(`Đã nhập ${fileMeta.name} vào SiteCam.`,`Imported ${fileMeta.name} into SiteCam.`,`已将 ${fileMeta.name} 导入 SiteCam。`));
-    }catch(e){setStatus(String(e.message||e),true)}finally{importBtn.disabled=false}
+    }catch(e){setStatus(String(e.message||e),true)}finally{importBtn.disabled=false;importAllBtn.disabled=!files.length}
+  };
+  importAllBtn.onclick=async()=>{
+    if(!files.length)return;
+    if(!window.fieldPlan?.importPdfFile){setStatus(M('Bản SiteCam này chưa hỗ trợ nhập PDF từ Drive.','This SiteCam build cannot import PDF from Drive.','此 SiteCam 版本不支持从 Drive 导入 PDF。'),true);return}
+    importBtn.disabled=true; importAllBtn.disabled=true; loadBtn.disabled=true; select.disabled=true;
+    let ok=0, failed=0; const errors=[];
+    try{
+      for(let i=0;i<files.length;i++){
+        const fileMeta=files[i];
+        try{
+          setStatus(M(`Đang nhập ${i+1}/${files.length}: ${fileMeta.name}…`,`Importing ${i+1}/${files.length}: ${fileMeta.name}…`,`正在导入 ${i+1}/${files.length}：${fileMeta.name}…`));
+          const blob=await window.SiteCamSharedDrive.downloadPdf(fileMeta);
+          const file=new File([blob],fileMeta.name,{type:'application/pdf',lastModified:Date.now()});
+          await window.fieldPlan.importPdfFile(file);
+          ok++;
+        }catch(e){failed++;errors.push(`${fileMeta.name}: ${String(e?.message||e)}`)}
+        await new Promise(r=>setTimeout(r,40));
+      }
+      if(failed){
+        setStatus(M(`Đã nhập ${ok}/${files.length} bản vẽ. Có ${failed} file lỗi.`,`Imported ${ok}/${files.length} drawings. ${failed} file(s) failed.`,`已导入 ${ok}/${files.length} 个图纸，${failed} 个失败。`)+(errors.length?` ${errors.slice(0,2).join(' | ')}`:''),true);
+      }else{
+        setStatus(M(`Đã nhập toàn bộ ${ok} bản vẽ vào SiteCam.`,`Imported all ${ok} drawings into SiteCam.`,`已将全部 ${ok} 个图纸导入 SiteCam。`));
+      }
+    }finally{
+      loadBtn.disabled=false; select.disabled=false; importBtn.disabled=false; importAllBtn.disabled=false;
+    }
   };
 })();
