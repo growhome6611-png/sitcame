@@ -2,8 +2,8 @@
 (function(root){
 'use strict';
 const MW={
-vi:'Nhà thầu|Tất cả nhà thầu|Nhập thành bản sao|Cập nhật vào bản gốc|Lỗi có thay đổi|Lỗi có xung đột|Ghim không khớp|Giữ bản gốc|Dùng bản nhà thầu|Chọn đúng công trình và bản vẽ gốc; không chọn bản sao trùng nguồn.|Bản gốc vừa thay đổi. Hãy mở lại gói để kiểm tra.|Đã cập nhật bản gốc.|Gói v51 chỉ nhập thành bản sao. Hãy bàn giao lại bằng v52.|Chỉ cập nhật các ghim khớp mã gốc. Các lỗi ngoài gói giữ nguyên; không tự thêm hoặc xóa ghim.|Không có thay đổi để cập nhật.|Bản gốc / Bản nhà thầu|Chế độ nhập|Vị trí|Mã, nhà thầu, kỹ sư|Mô tả|Mức độ|Số lần lặp|Ngày phát hiện và hạn sửa|Ảnh hiện trạng|Ảnh sau sửa, trạng thái và ngày hoàn thành',
-en:'Contractor|All contractors|Import as a copy|Update original|Changed issues|Conflicting issues|Unmatched pins|Keep original|Use contractor update|Select the original project and drawing; avoid duplicate copies of the same source.|The original has changed. Reopen the package for review.|Original updated.|v51 packages can only be copied. Hand over again using v52.|Updates matched original pins only. Other issues remain unchanged; no pins are added or deleted automatically.|No changes to apply.|Original / Contractor|Import mode|Position|Code, contractor, engineer|Description|Severity|Repetition|Found date and deadline|Before photo|After photo, status and completion date',
+vi:'Nhà thầu|Tất cả nhà thầu|Nhập thành bản sao|Cập nhật vào bản gốc|Lỗi có thay đổi|Lỗi có xung đột|Ghim không khớp|Giữ bản gốc|Dùng bản nhà thầu|Chọn đúng công trình và bản vẽ gốc; không chọn bản sao trùng nguồn.|Bản gốc vừa thay đổi. Hãy mở lại gói để kiểm tra.|Đã cập nhật bản gốc.|Gói v51 chỉ nhập thành bản sao. Hãy bàn giao lại bằng v52.|Gộp vào bản gốc: ghim trùng được cập nhật, ghim mới được thêm, ghim đang có nhưng không nằm trong gói vẫn được giữ nguyên.|Không có thay đổi để cập nhật.|Bản gốc / Bản nhà thầu|Chế độ nhập|Vị trí|Mã, nhà thầu, kỹ sư|Mô tả|Mức độ|Số lần lặp|Ngày phát hiện và hạn sửa|Ảnh hiện trạng|Ảnh sau sửa, trạng thái và ngày hoàn thành',
+en:'Contractor|All contractors|Import as a copy|Update original|Changed issues|Conflicting issues|Unmatched pins|Keep original|Use contractor update|Select the original project and drawing; avoid duplicate copies of the same source.|The original has changed. Reopen the package for review.|Original updated.|v51 packages can only be copied. Hand over again using v52.|Merge into the original: matching pins are updated, new pins are added, and existing pins not present in the package are kept.|No changes to apply.|Original / Contractor|Import mode|Position|Code, contractor, engineer|Description|Severity|Repetition|Found date and deadline|Before photo|After photo, status and completion date',
 zh:'承包商|所有承包商|导入为副本|更新原始数据|有变更的问题|有冲突的问题|未匹配标记|保留原始数据|采用承包商更新|请选择原始工程和图纸，避免同源副本重复。|原始数据已变化，请重新打开交接包检查。|已更新原始数据。|v51交接包仅能导入副本，请使用v52重新交接。|仅更新匹配原始编号的标记；其他问题保持不变，不自动新增或删除标记。|没有可更新的变更。|原始数据 / 承包商|导入方式|位置|编号、承包商、负责人|描述|严重程度|重复次数|发现日期及整改期限|现状照片|整改照片、状态和完成日期',
 ja:'施工業者|全施工業者|コピーとして読込|元データを更新|変更のある不具合|競合する不具合|未一致のピン|元データを維持|業者の更新を使用|元の工事と図面を選択し、同じ出所のコピーを避けてください。|元データが変わりました。再度開いて確認してください。|元データを更新しました。|v51はコピーのみです。v52で再度引き継いでください。|元IDが一致するピンのみ更新。他の不具合は維持し、追加・削除しません。|更新する変更がありません。|元データ / 業者|読込方法|位置|番号・業者・担当者|説明|重大度|繰返し|発見日と期限|修正前写真|修正後写真・状態・完了日',
 ko:'시공업체|모든 시공업체|복사본으로 가져오기|원본 업데이트|변경된 하자|충돌 하자|일치하지 않는 핀|원본 유지|업체 업데이트 사용|원본 공사와 도면을 선택하고 중복 복사본을 피하세요.|원본이 변경되었습니다. 파일을 다시 열어 확인하세요.|원본이 업데이트되었습니다.|v51은 복사만 가능합니다. v52로 다시 인계하세요.|원본 ID가 일치하는 핀만 업데이트합니다. 다른 하자는 유지하며 자동 추가/삭제하지 않습니다.|적용할 변경이 없습니다.|원본 / 업체|가져오기 모드|위치|번호, 업체, 담당자|설명|심각도|반복|발견일과 기한|보수 전 사진|보수 후 사진, 상태, 완료일',
@@ -18,30 +18,80 @@ ru:'Подрядчик|Все подрядчики|Импортировать к
 };
 const groups=[['page','x','y','location'],['code','contractor','engineer'],['note','reportTranslations'],['severity'],['repeats'],['foundAt','repairDays','deadline'],['before','photoAt'],['after','status','resolvedAt']];
 const word=(lang,n)=>(MW[lang]||MW.en).split('|')[n];
-const stable=value=>JSON.stringify(sort(value));function sort(v){if(Array.isArray(v))return v.map(sort);if(v&&typeof v==='object')return Object.fromEntries(Object.keys(v).sort().map(k=>[k,sort(v[k])]));return v}
+const stable=value=>JSON.stringify(sort(value));
+function sort(v){if(Array.isArray(v))return v.map(sort);if(v&&typeof v==='object')return Object.fromEntries(Object.keys(v).sort().map(k=>[k,sort(v[k])]));return v}
 function canonical(pin,media={}){const p=root.FieldHandover.cleanPin(pin,{pages:10000});const o={};for(const k of groups.flat())o[k]=k==='before'||k==='after'?media[k]||null:k==='reportTranslations'?p[k]||{}:p[k];return o}
 function validateBase(base,plan){if(!base||typeof base!=='object'||Object.keys(base).sort().join()!==groups.flat().sort().join())root.FieldHandover.fail(22);const normalized=canonical({...base,id:'base',planId:plan.id});for(const kind of ['before','after']){const photo=base[kind];if(photo!==null){if(!photo||typeof photo.name!=='string'||photo.name.length>1000||!/^([a-f0-9]{64})$/.test(photo.hash)||typeof photo.mime!=='string'||!/^image\//.test(photo.mime))root.FieldHandover.fail(22);normalized[kind]={name:photo.name,hash:photo.hash,mime:photo.mime}}}if(stable(normalized)!==stable(base)||base.page>plan.pages)root.FieldHandover.fail(22);return normalized}
 function incomingSnapshot(pin,manifest){const media={};for(const kind of ['before','after'])if(pin[kind]){const f=manifest.files.find(f=>f.path===pin[kind].file);media[kind]={name:pin[kind].name,hash:f.sha256,mime:f.mime}}return canonical(pin,media)}
-async function snapshot(pin,read){const media={};for(const kind of ['before','after']){const name=pin[kind==='before'?'photoName':'afterName'];if(!name)continue;const r=await read('photos',pin.id+(kind==='after'?':after':''));if(!r?.blob)root.FieldHandover.fail(21,pin.code);media[kind]={name,hash:await root.FieldHandover.hash(await r.blob.arrayBuffer()),mime:r.blob.type||'image/jpeg'}}return canonical(pin,media)}
+async function snapshot(pin,read){const media={};for(const kind of ['before','after']){const name=pin[kind==='before'?'photoName':'afterName'];if(!name)continue;let r=await read('photos',pin.photoStorageIds?.[kind]||pin.id+(kind==='after'?':after':''));if(!r?.blob)r=await read('photos',pin.id+(kind==='after'?':after':''));if(!r?.blob)root.FieldHandover.fail(21,pin.code);media[kind]={name,hash:await root.FieldHandover.hash(await r.blob.arrayBuffer()),mime:r.blob.type||'image/jpeg'}}return canonical(pin,media)}
 function groupValue(s,index){return groups[index].map(k=>s[k])}
-async function analyze(pack,ctx){
- const m=pack.manifest;if(m.version!==2)return {compatible:false,entries:[],conflicts:0,changed:0,unmatched:m.pins.length,digest:''};
- const entries=[],sourcePlans=new Map(m.plans.map(p=>[p.id,p])),mapping=new Map();let unmatched=0;
- for(const p of m.plans){const candidates=ctx.plans.filter(q=>q.handoverOriginId===p.originId),selected=candidates.find(q=>q.id===ctx.selectedPlan),target=selected||(candidates.length===1?candidates[0]:null);if(!target)continue;const r=await ctx.read('plans',target.id);if(!r?.bytes)root.FieldHandover.fail(21,target.name);if(await root.FieldHandover.hash(r.bytes)!==m.files.find(f=>f.path===p.file).sha256)continue;mapping.set(p.id,target)}
- for(const incoming of m.pins){const plan=mapping.get(incoming.planId),locals=plan?ctx.pins.filter(p=>p.planId===plan.id&&p.handoverOriginId===incoming.originId):[],local=locals.length===1?locals[0]:null;if(!local){unmatched++;continue}const current=await snapshot(local,ctx.read),next=incomingSnapshot(incoming,m),base=incoming.base,changes=[],conflicts=[];
-  groups.forEach((_,i)=>{const b=stable(groupValue(base,i)),l=stable(groupValue(current,i)),r=stable(groupValue(next,i));if(r===b||r===l)return;if(l===b)changes.push(i);else conflicts.push(i)});
-  entries.push({localId:local.id,planId:plan.id,planName:plan.name,code:local.code,current,next,incoming,changes,conflicts});
+function normName(v){return String(v||'').trim().toLocaleLowerCase().replace(/\s+/g,' ').replace(/\s*·\s*\d{4}-\d{2}-\d{2}.*$/,'')}
+function blank(v){if(v===null||v===undefined||v==='')return true;if(Array.isArray(v))return v.every(blank);if(typeof v==='object')return Object.keys(v).length===0||Object.values(v).every(blank);return false}
+function groupBlank(s,index){return groupValue(s,index).every(blank)}
+function distance(a,b){if(a.page!==b.page)return Infinity;return Math.hypot(Number(a.x)-Number(b.x),Number(a.y)-Number(b.y))}
+async function mapPlans(m,ctx){
+ const mapping=new Map(),localHash=new Map();
+ async function hashPlan(q){if(localHash.has(q.id))return localHash.get(q.id);const r=await ctx.read('plans',q.id);if(!r?.bytes){localHash.set(q.id,'');return ''}const h=await root.FieldHandover.hash(r.bytes);localHash.set(q.id,h);return h}
+ for(const p of m.plans){
+  let candidates=ctx.plans.filter(q=>q.handoverOriginId&&q.handoverOriginId===p.originId);
+  let target=candidates.find(q=>q.id===ctx.selectedPlan)||(candidates.length===1?candidates[0]:null);
+  if(!target){
+   const expected=m.files.find(f=>f.path===p.file)?.sha256||'';const matches=[];
+   for(const q of ctx.plans)if(await hashPlan(q)===expected)matches.push(q);
+   target=matches.find(q=>q.id===ctx.selectedPlan)||matches.find(q=>normName(q.name)===normName(p.name))||(matches.length===1?matches[0]:null);
+  }
+  if(!target){const names=ctx.plans.filter(q=>q.pages===p.pages&&normName(q.name)===normName(p.name));target=names.find(q=>q.id===ctx.selectedPlan)||(names.length===1?names[0]:null)}
+  if(target)mapping.set(p.id,target);
  }
- const changed=entries.filter(e=>e.changes.length||e.conflicts.length).length,conflicts=entries.filter(e=>e.conflicts.length).length,digest=stable(entries.map(e=>[e.localId,e.current]));return {compatible:true,entries,changed,conflicts,unmatched,digest};
+ return mapping;
 }
-function prepare(pack,analysis,ctx,choices={}){
- const updates=[],records=[];
- for(const e of analysis.entries){const apply=[...e.changes,...(choices[e.localId]==='incoming'?e.conflicts:[])];if(!apply.length)continue;const original=ctx.pins.find(p=>p.id===e.localId),pin={...original,photoStorageIds:{...original.photoStorageIds}};
-  for(const index of apply)for(const k of groups[index])if(k!=='before'&&k!=='after')pin[k]=e.next[k];
-  for(const [kind,index] of [['before',6],['after',7]])if(apply.includes(index)){if(stable(e.current[kind])===stable(e.next[kind]))continue;const media=e.incoming[kind],name=kind==='before'?'photoName':'afterName';pin[name]=media?.name||'';if(media){const data=pack.payload.get(media.file),recordId='handover-photo-'+root.FieldHandover.newId();pin.photoStorageIds[kind]=recordId;records.push({id:recordId,blob:new Blob([data.bytes],{type:data.mime}),fileName:media.name})}else delete pin.photoStorageIds[kind]}
-  updates.push(pin);
+function findLocalPin(incoming,plan,ctx){
+ const locals=ctx.pins.filter(p=>p.planId===plan.id);
+ let matched=locals.filter(p=>p.handoverOriginId&&p.handoverOriginId===incoming.originId);if(matched.length===1)return {pin:matched[0],kind:'origin'};
+ const code=String(incoming.code||'').trim().toLocaleLowerCase();
+ if(code){matched=locals.filter(p=>String(p.code||'').trim().toLocaleLowerCase()===code&&p.page===incoming.page);if(matched.length===1)return {pin:matched[0],kind:'heuristic'}}
+ const near=locals.map(p=>[p,distance(p,incoming)]).filter(x=>x[1]<=0.018).sort((a,b)=>a[1]-b[1]);
+ if(near.length===1||near.length>1&&near[0][1]+0.006<near[1][1])return {pin:near[0][0],kind:'heuristic'};
+ return {pin:null,kind:'none'};
+}
+async function analyze(pack,ctx){
+ const m=pack.manifest;if(m.version!==2)return {compatible:false,entries:[],additions:[],conflicts:0,changed:0,unmatched:m.pins.length,digest:''};
+ const entries=[],additions=[],mapping=await mapPlans(m,ctx);let unmatched=0;
+ for(const incoming of m.pins){
+  const plan=mapping.get(incoming.planId);if(!plan){unmatched++;continue}
+  const found=findLocalPin(incoming,plan,ctx),local=found.pin;
+  if(!local){additions.push({incoming,planId:plan.id,planName:plan.name,code:incoming.code||''});unmatched++;continue}
+  const current=await snapshot(local,ctx.read),next=incomingSnapshot(incoming,m),changes=[],conflicts=[];
+  if(found.kind==='origin'){
+   const base=incoming.base;groups.forEach((_,i)=>{const b=stable(groupValue(base,i)),l=stable(groupValue(current,i)),r=stable(groupValue(next,i));if(r===b||r===l)return;if(l===b)changes.push(i);else conflicts.push(i)});
+  }else{
+   groups.forEach((_,i)=>{const l=stable(groupValue(current,i)),r=stable(groupValue(next,i));if(l===r)return;if(groupBlank(next,i))return;if(groupBlank(current,i))changes.push(i);else conflicts.push(i)});
+  }
+  entries.push({localId:local.id,planId:plan.id,planName:plan.name,code:local.code||incoming.code,current,next,incoming,matchKind:found.kind,changes,conflicts});
  }
- return {updates,records};
+ const changed=entries.filter(e=>e.changes.length||e.conflicts.length).length+additions.length,conflicts=entries.filter(e=>e.conflicts.length).length;
+ const currentState=[];for(const e of entries)currentState.push([e.localId,e.current]);
+ const digest=stable({entries:currentState,additions:additions.map(a=>[a.planId,a.incoming.originId,a.incoming.code,a.incoming.page,a.incoming.x,a.incoming.y]),plans:[...mapping].map(([a,b])=>[a,b.id])});
+ return {compatible:mapping.size>0,entries,additions,changed,conflicts,unmatched,digest};
+}
+function mediaRecord(pack,media,id){if(!media)return null;const data=pack.payload.get(media.file);if(!data)return null;return {id,blob:new Blob([data.bytes],{type:data.mime}),fileName:media.name||media.file.split('/').pop()}}
+function prepare(pack,analysis,ctx,choices={}){
+ const updates=[],additions=[],records=[];
+ for(const e of analysis.entries){
+  const apply=[...e.changes,...(choices[e.localId]==='incoming'?e.conflicts:[])];if(!apply.length)continue;const original=ctx.pins.find(p=>p.id===e.localId),pin={...original,photoStorageIds:{...original.photoStorageIds}};
+  for(const index of apply)for(const k of groups[index])if(k!=='before'&&k!=='after')pin[k]=e.next[k];
+  for(const [kind,index] of [['before',6],['after',7]])if(apply.includes(index)){if(stable(e.current[kind])===stable(e.next[kind]))continue;const media=e.incoming[kind],name=kind==='before'?'photoName':'afterName';pin[name]=media?.name||'';if(media){const recordId='handover-photo-'+root.FieldHandover.newId();pin.photoStorageIds[kind]=recordId;const rec=mediaRecord(pack,media,recordId);if(rec)records.push(rec)}else delete pin.photoStorageIds[kind]}
+  if(!pin.handoverOriginId)pin.handoverOriginId=e.incoming.originId;updates.push(pin);
+ }
+ for(const a of analysis.additions||[]){
+  const sourcePlan=pack.manifest.plans.find(p=>p.id===a.incoming.planId),targetPlan=ctx.plans.find(p=>p.id===a.planId);if(!sourcePlan||!targetPlan)continue;
+  const clean=root.FieldHandover.cleanPin(a.incoming,sourcePlan),newId='handover-pin-'+root.FieldHandover.newId();
+  const pin={...clean,id:newId,project:targetPlan.project,planId:targetPlan.id,photoName:'',afterName:'',handoverOriginId:a.incoming.originId,handoverBase:a.incoming.base||incomingSnapshot(a.incoming,pack.manifest)};
+  if(a.incoming.before){pin.photoName=a.incoming.before.name||'';const rec=mediaRecord(pack,a.incoming.before,newId);if(rec)records.push(rec)}
+  if(a.incoming.after){pin.afterName=a.incoming.after.name||'';const rec=mediaRecord(pack,a.incoming.after,newId+':after');if(rec)records.push(rec)}
+  additions.push(pin);
+ }
+ return {updates,additions,records};
 }
 function contractors(pins){return [...new Set(pins.map(p=>String(p.contractor||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b))}
 function groupSummary(values){return values.map(v=>v===null?'—':typeof v==='object'?(v.name||Object.values(v).map(t=>t.text||'').join(' / ')):String(v)).join(' · ')}

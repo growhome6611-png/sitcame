@@ -2896,9 +2896,9 @@ function persistChecked(next){const saved=JSON.parse(localStorage.getItem('dh_st
 async function analyzeHandover(pack,target){if(project()!==target)FieldHandover.fail(22);return HandoverMerge.analyze(pack,mergeContext())}
 async function mergeHandover(pack,target,choices,preview){
  if(project()!==target)FieldHandover.fail(22);const context=mergeContext(),analysis=await HandoverMerge.analyze(pack,context);
- if(!analysis.compatible||!analysis.entries.length)FieldHandover.fail(22,HandoverMerge.word(app.state.lang,9));
+ if(!analysis.compatible||!(analysis.entries.length||(analysis.additions||[]).length))FieldHandover.fail(22,HandoverMerge.word(app.state.lang,9));
  if(analysis.digest!==preview.digest)FieldHandover.fail(22,HandoverMerge.word(app.state.lang,10));
- const update=HandoverMerge.prepare(pack,analysis,context,choices);if(!update.updates.length)return 0;
+ const update=HandoverMerge.prepare(pack,analysis,context,choices);if(!update.updates.length&&!update.additions.length)return 0;
  for(const record of update.records){const image=await reportBitmap(record.blob);if(!image)FieldHandover.fail(22,record.fileName);image.close?.()}
  const database=await db().catch(()=>FieldHandover.fail(24));
  const stage=remove=>new Promise((resolve,reject)=>{const tx=database.transaction('photos','readwrite');tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error||Error('Storage transaction aborted'));tx.onerror=()=>reject(tx.error);try{for(const record of update.records){if(remove)tx.objectStore('photos').delete(record.id);else tx.objectStore('photos').add(record)}}catch(e){try{tx.abort()}catch(_){}reject(e)}});
@@ -2907,10 +2907,10 @@ async function mergeHandover(pack,target,choices,preview){
   if(project()!==target)FieldHandover.fail(22);
   const latest=await HandoverMerge.analyze(pack,mergeContext());if(latest.digest!==preview.digest)FieldHandover.fail(22,HandoverMerge.word(app.state.lang,10));
   const byId=new Map(update.updates.map(p=>[p.id,p]));
-  persistChecked({...app.state,planPins:pins().map(p=>byId.get(p.id)||p)});
+  persistChecked({...app.state,planPins:[...pins().map(p=>byId.get(p.id)||p),...update.additions]});
  }catch(e){try{await stage(true)}catch(_){}if(e.handoverCode)throw e;FieldHandover.fail(24)}
  for(const record of update.records)memoryRecords.photos.set(record.id,record);
- selectedPin=null;activePin=null;$('planDetail').classList.add('hidden');app.persist();renderPins();summary();return update.updates.length;
+ selectedPin=null;activePin=null;$('planDetail').classList.add('hidden');app.persist();renderPins();summary();return update.updates.length+update.additions.length;
 }
 async function commitHandover(pack,target){
  if(project()!==target)FieldHandover.fail(22,'Project changed');
@@ -2936,7 +2936,7 @@ async function commitHandover(pack,target){
  await loadPlan(copy.plans[0].id);
 }
 window.fieldHandoverUI=FieldHandover.install({project,notice,commit:commitHandover,analyze:analyzeHandover,merge:mergeHandover,
- async conflictPhotoBlobs(pack,entry,kind){const local=pins().find(p=>p.id===entry.localId),record=local?.[kind==='before'?'photoName':'afterName']?await get('photos',local.id+(kind==='after'?':after':'')):null,media=entry.incoming[kind],payload=media?pack.payload.get(media.file):null;return {local:record?.blob||null,incoming:payload?new Blob([payload.bytes],{type:payload.mime}):null}},
+ async conflictPhotoBlobs(pack,entry,kind){const local=pins().find(p=>p.id===entry.localId),recordId=local?.photoStorageIds?.[kind]||local?.id+(kind==='after'?':after':''),record=local?.[kind==='before'?'photoName':'afterName']?await get('photos',recordId):null,media=entry.incoming[kind],payload=media?pack.payload.get(media.file):null;return {local:record?.blob||null,incoming:payload?new Blob([payload.bytes],{type:payload.mime}):null}},
  displayValues(values,index){const out=[...values],labels=issueLabels[app.state.lang]||issueLabels.en;if(index===3)out[0]=labels.severity[{low:0,medium:1,high:2,critical:3}[out[0]]??1];if(index===7)out[1]=labels.status[{open:0,progress:1,closed:2}[out[1]]??0];return out},
  contractors(all){const selected=$('planSelect').value||activeId(),ids=new Set(registry().filter(p=>p.project===project()&&(all||p.id===selected)).map(p=>p.id));return HandoverMerge.contractors(pins().filter(p=>p.project===project()&&ids.has(p.planId)))},
  async snapshot(all,contractor=''){

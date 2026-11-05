@@ -1,0 +1,146 @@
+  rf('rcPlanLabel').textContent=app.state.lang==='vi'?'Bản vẽ PDF và các lỗi sẽ xuất':app.state.lang==='zh'?'要导出的PDF图纸及问题':'Drawing PDF and linked issues to export';
+  rf('rcPlan').replaceChildren();for(const meta of registry().filter(p=>p.project===project())){const option=document.createElement('option');option.value=meta.id;option.textContent=meta.name;rf('rcPlan').append(option)}
+  rf('rcPlan').value=$('planSelect').value||activeId()||rf('rcPlan').options[0]?.value||'';
+  rf('rcContractorLabel').textContent=issueUXText(3);
+  rf('rcPlan').onchange=()=>{populateReportContractors();updateReportPlanPreview()};rf('rcContractor').onchange=updateReportPlanPreview;populateReportContractors();updateReportPlanPreview();
+  let saved={};try{saved=JSON.parse(localStorage.getItem('dh_report_options_v24')||'{}')}catch(_){}
+  rf('rcContractorStats').checked=saved.includeContractorStats!==false;
+  rf('rcQuality').value=format==='print'?'print':(saved.quality==='print'?'print':'fast');
+  rf('rcPrimary').value=saved.primary||app.state.lang||'vi';
+  rf('rcSecondary').value=saved.secondary&&saved.secondary!==rf('rcPrimary').value?saved.secondary:(rf('rcPrimary').value==='en'?'vi':'en');rf('rcSource').value=saved.source||'vi';rf('rcTranslationMode').value=saved.translationMode==='auto'?'auto':'none';updateTranslationMode();
+  rf('rcProject').value=saved.project||app.state.projects[project()]?.name||'';
+  rf('rcCompany').value=saved.company||'DONG HUI';
+  rf('rcAuthor').value=saved.author||'';
+  rf('rcSort').value=saved.sortBy==='contractor'?'contractor':'number';
+  reportDialog.hidden=false;reportDialog.style.display='flex';rf('rcProject').focus()
+}
+rf('rcTranslationMode').onchange=updateTranslationMode;rf('rcCancel').onclick=()=>{if(reportFormat==='print'&&pendingPrintWindow&&!pendingPrintWindow.closed){try{pendingPrintWindow.close()}catch(_){}}pendingPrintWindow=null;closeReportDialog()};
+reportDialog.onclick=e=>{if(e.target===reportDialog)closeReportDialog()};
+reportForm.onsubmit=async e=>{
+  e.preventDefault();const words=reportDialogWords();
+  if(rf('rcPrimary').value===rf('rcSecondary').value){rf('rcError').textContent=words[8];return}
+  const planId=rf('rcPlan').value,planMeta=registry().find(p=>p.id===planId&&p.project===project());if(!planMeta){rf('rcError').textContent=app.state.lang==='vi'?'Hãy chọn bản vẽ PDF.':'Select a drawing PDF.';return}if(!pins().some(p=>p.planId===planId&&p.project===project())){rf('rcError').textContent=app.state.lang==='vi'?'Bản vẽ này chưa có ghim lỗi.':'This drawing has no issue pins.';return}
+  const contractor=rf('rcContractor').value;if(contractor&&!pins().some(p=>p.project===project()&&p.planId===planId&&String(p.contractor||'').trim().toLocaleLowerCase()===contractor.toLocaleLowerCase())){rf('rcError').textContent=M('Không có lỗi của nhà thầu đã chọn.','No issues for the selected contractor.','所选承包商没有问题。');return}
+  const source=rf('rcSource').value;let issueTranslations;rf('rcSubmit').disabled=true;
+  try{issueTranslations=await prepareIssueTranslations()}catch(error){rf('rcError').textContent=error.message||String(error);rf('rcSubmit').disabled=false;return}
+  const values={includeContractorStats:rf('rcContractorStats').checked,translationMode:rf('rcTranslationMode').value,quality:rf('rcQuality').value,planId,planName:planMeta.name,contractor,source,issueTranslations,primary:rf('rcPrimary').value,secondary:rf('rcSecondary').value,project:rf('rcProject').value.trim(),company:rf('rcCompany').value.trim(),author:rf('rcAuthor').value.trim(),sortBy:rf('rcSort').value};
+  if(!values.project||!values.company||!values.author){rf('rcError').textContent=words[9];rf('rcSubmit').disabled=false;return}
+  for(const pin of reportReviewPins()){if(!issueTranslations?.[pin.id])continue;pin.reportTranslations??={};for(const [lang,value] of Object.entries(issueTranslations[pin.id]))pin.reportTranslations[lang]={source:pin.note,sourceLang:source,text:value,kind:'auto'};window.fieldCloud?.pinChanged(pin)}app.persist();
+  localStorage.setItem('dh_report_options_v24',JSON.stringify((({planId,planName,contractor,issueTranslations,...preferences})=>preferences)(values)));
+  closeReportDialog();reportOptions=values;
+  try{if(reportFormat==='pdf')await exportIssueReport();else if(reportFormat==='print')await exportIssueReport('print');else if(reportFormat==='images')await exportIssueReportImages();else await exportIssueExcel()}
+  finally{reportOptions=null;rf('rcSubmit').disabled=false}
+};
+
+function mergeContext(){return {plans:registry().filter(p=>p.project===project()),pins:pins().filter(p=>p.project===project()),selectedPlan:$('planSelect').value||activeId(),read:get}}
+function persistChecked(next){const saved=JSON.parse(localStorage.getItem('dh_stamp_v2')||'{}');localStorage.setItem('dh_stamp_v2',JSON.stringify({...next,logoData:saved.logoData||''}));Object.assign(app.state,next)}
+async function analyzeHandover(pack,target){if(project()!==target)FieldHandover.fail(22);return HandoverMerge.analyze(pack,mergeContext())}
+async function mergeHandover(pack,target,choices,preview){
+ if(project()!==target)FieldHandover.fail(22);const context=mergeContext(),analysis=await HandoverMerge.analyze(pack,context);
+ if(!analysis.compatible||!analysis.entries.length)FieldHandover.fail(22,HandoverMerge.word(app.state.lang,9));
+ if(analysis.digest!==preview.digest)FieldHandover.fail(22,HandoverMerge.word(app.state.lang,10));
+ const update=HandoverMerge.prepare(pack,analysis,context,choices);if(!update.updates.length)return 0;
+ for(const record of update.records){const image=await reportBitmap(record.blob);if(!image)FieldHandover.fail(22,record.fileName);image.close?.()}
+ const database=await db().catch(()=>FieldHandover.fail(24));
+ const stage=remove=>new Promise((resolve,reject)=>{const tx=database.transaction('photos','readwrite');tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error||Error('Storage transaction aborted'));tx.onerror=()=>reject(tx.error);try{for(const record of update.records){if(remove)tx.objectStore('photos').delete(record.id);else tx.objectStore('photos').add(record)}}catch(e){try{tx.abort()}catch(_){}reject(e)}});
+ try{await stage(false)}catch(_){FieldHandover.fail(24)}
+ try{
+  if(project()!==target)FieldHandover.fail(22);
+  const latest=await HandoverMerge.analyze(pack,mergeContext());if(latest.digest!==preview.digest)FieldHandover.fail(22,HandoverMerge.word(app.state.lang,10));
+  const byId=new Map(update.updates.map(p=>[p.id,p]));
+  persistChecked({...app.state,planPins:pins().map(p=>byId.get(p.id)||p)});
+ }catch(e){try{await stage(true)}catch(_){}if(e.handoverCode)throw e;FieldHandover.fail(24)}
+ for(const record of update.records)memoryRecords.photos.set(record.id,record);
+ selectedPin=null;activePin=null;$('planDetail').classList.add('hidden');app.persist();renderPins();summary();return update.updates.length;
+}
+async function commitHandover(pack,target){
+ if(project()!==target)FieldHandover.fail(22,'Project changed');
+ if(registry().some(p=>p.handoverPackageId===pack.manifest.packageId&&p.project===target))FieldHandover.fail(19);
+ // Verify every drawing and photograph before publishing any metadata.
+ const api=await engine();
+ for(const plan of pack.manifest.plans){let doc;try{doc=await api.getDocument({data:pack.payload.get(plan.file).bytes.slice(),useWasm:false,useSystemFonts:true}).promise;if(doc.numPages!==plan.pages)FieldHandover.fail(22,plan.name)}finally{if(doc)await doc.destroy()}}
+ for(const file of pack.manifest.files.filter(f=>f.mime.startsWith('image/'))){const data=pack.payload.get(file.path),image=await reportBitmap(new Blob([data.bytes],{type:data.mime}));if(!image)FieldHandover.fail(22,file.path);image.close?.()}
+ if(project()!==target)FieldHandover.fail(22,'Project changed');
+ const copy=FieldHandover.materialize(pack,target),database=await db().catch(()=>FieldHandover.fail(24));
+ const transact=remove=>new Promise((resolve,reject)=>{const tx=database.transaction(['plans','photos'],'readwrite');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('Storage transaction aborted'));try{for(const store of ['plans','photos'])for(const record of copy.records[store]){if(remove)tx.objectStore(store).delete(record.id);else tx.objectStore(store).add(record)}}catch(e){try{tx.abort()}catch(_){}reject(e)}});
+ try{await transact(false)}catch(_){FieldHandover.fail(24)}
+ // New IDs ensure rollback can never remove an existing drawing or photo.
+ try{
+  if(project()!==target)FieldHandover.fail(22,'Project changed');
+  const next={...app.state,planRegistry:[...registry(),...copy.plans],planPins:[...pins(),...copy.pins],planActive:{...app.state.planActive,[target]:copy.plans[0].id}};
+  const saved=JSON.parse(localStorage.getItem('dh_stamp_v2')||'{}');
+  localStorage.setItem('dh_stamp_v2',JSON.stringify({...next,logoData:saved.logoData||''}));
+  Object.assign(app.state,next);
+ }catch(e){try{await transact(true)}catch(_){}if(e.handoverCode)throw e;FieldHandover.fail(24)}
+ for(const store of ['plans','photos'])for(const record of copy.records[store])memoryRecords[store].set(record.id,record);
+ app.persist();selectedPin=null;activePin=null;$('planDetail').classList.add('hidden');planOptions();summary();
+ await loadPlan(copy.plans[0].id);
+}
+window.fieldHandoverUI=FieldHandover.install({project,notice,commit:commitHandover,analyze:analyzeHandover,merge:mergeHandover,
+ async conflictPhotoBlobs(pack,entry,kind){const local=pins().find(p=>p.id===entry.localId),record=local?.[kind==='before'?'photoName':'afterName']?await get('photos',local.id+(kind==='after'?':after':'')):null,media=entry.incoming[kind],payload=media?pack.payload.get(media.file):null;return {local:record?.blob||null,incoming:payload?new Blob([payload.bytes],{type:payload.mime}):null}},
+ displayValues(values,index){const out=[...values],labels=issueLabels[app.state.lang]||issueLabels.en;if(index===3)out[0]=labels.severity[{low:0,medium:1,high:2,critical:3}[out[0]]??1];if(index===7)out[1]=labels.status[{open:0,progress:1,closed:2}[out[1]]??0];return out},
+ contractors(all){const selected=$('planSelect').value||activeId(),ids=new Set(registry().filter(p=>p.project===project()&&(all||p.id===selected)).map(p=>p.id));return HandoverMerge.contractors(pins().filter(p=>p.project===project()&&ids.has(p.planId)))},
+ async snapshot(all,contractor=''){
+  const selected=$('planSelect').value||activeId(),norm=v=>String(v||'').trim().toLocaleLowerCase(),candidates=registry().filter(p=>p.project===project()&&(all||p.id===selected)),candidateIds=new Set(candidates.map(p=>p.id)),items=pins().filter(p=>p.project===project()&&candidateIds.has(p.planId)&&(!contractor||norm(p.contractor)===norm(contractor))),used=new Set(items.map(p=>p.planId)),plans=candidates.filter(p=>!contractor||used.has(p.id)),ids=new Set(plans.map(p=>p.id)),pinIds=new Set(items.map(p=>p.id));
+  const next={...app.state,planRegistry:registry().map(p=>ids.has(p.id)?{...p,handoverOriginId:p.handoverOriginId||FieldHandover.newId()}:p),planPins:pins().map(p=>pinIds.has(p.id)?{...p,handoverOriginId:p.handoverOriginId||FieldHandover.newId()}:p)};
+  try{persistChecked(next)}catch(_){FieldHandover.fail(24)}app.persist();
+  return {projectName:app.state.projects[project()]?.name||'Project',contractor,plans:registry().filter(p=>ids.has(p.id)).map(p=>({...p})),pins:pins().filter(p=>pinIds.has(p.id)).map(p=>JSON.parse(JSON.stringify(p))),read:get};
+ }
+});
+window.fieldHandoverUI.render();
+$('planReport').onclick=()=>openReportConfirm('pdf');$('planPrintReport').onclick=()=>{pendingPrintWindow=window.open('about:blank','sitecam-print');openReportConfirm('print')};$('planReportImages').onclick=()=>openReportConfirm('images');$('planExcel').onclick=()=>openReportConfirm('excel');
+$('handoverDriveUpload').onclick=async()=>{const btn=$('handoverDriveUpload');if(btn.disabled)return;const site=app.state.projects?.[project()]||{};const link=String(site.drawingFolderUrl||site.folderUrl||'').trim();if(!link){notice(M('Công trình này chưa có link thư mục Drive. Hãy dán link thư viện bản vẽ hoặc link Drive của công trình trước.','This project has no Drive folder link. Add the shared drawing/project Drive link first.','该项目尚未设置Drive文件夹链接，请先填写共享图纸或项目Drive链接。'),true);return}try{btn.disabled=true;notice(M('Đang tạo gói bàn giao và cập nhật lên Drive…','Building the handover package and updating Drive…','正在生成交接包并更新到Drive…'));const folder=window.fieldDrive?.parseFolder?.(link);if(!folder?.id)throw Error(M('Link Drive không hợp lệ.','Invalid Drive folder link.','Drive链接无效。'));await window.SiteCamDriveAPI?.ensureAuth?.(true);const pack=await window.fieldHandoverUI.exportPackage(true,'');const safe=(pack.input.projectName||'Cong_trinh').replace(/[^\p{L}\p{N}_-]+/gu,'_');const name=`SiteCam_Ban_giao_${safe}_LATEST.zip`;await window.SiteCamDriveAPI.putFile({parentId:folder.id,name,blob:pack.output.blob,mimeType:'application/zip'});notice(M(`Đã cập nhật ${name} lên thư mục Drive dùng chung.`,`Updated ${name} in the shared Drive folder.`,`已将${name}更新到共享Drive文件夹。`))}catch(e){notice(M('Không cập nhật được gói bàn giao lên Drive: ','Could not update the handover package on Drive: ','无法更新交接包到Drive：')+(e?.message||e),true)}finally{btn.disabled=false}};
+async function createCloudPackage(targetProject=project()){
+ const target=Number(targetProject);
+ const candidates=registry().filter(p=>p.project===target),ids=new Set(candidates.map(p=>p.id)),items=pins().filter(p=>p.project===target&&ids.has(p.planId));
+ if(!candidates.length)throw Error(M('Công trình chưa có bản vẽ để đồng bộ.','This project has no drawing to sync.','此项目没有可同步的图纸。'));
+ const next={...app.state,planRegistry:registry().map(p=>ids.has(p.id)?{...p,handoverOriginId:p.handoverOriginId||FieldHandover.newId()}:p),planPins:pins().map(p=>items.some(x=>x.id===p.id)?{...p,handoverOriginId:p.handoverOriginId||FieldHandover.newId()}:p)};
+ try{persistChecked(next)}catch(_){}app.persist();
+ const input={projectName:app.state.projects[target]?.name||`Công trình ${String(target+1).padStart(2,'0')}`,contractor:'',plans:registry().filter(p=>ids.has(p.id)).map(p=>({...p})),pins:pins().filter(p=>items.some(x=>x.id===p.id)).map(p=>JSON.parse(JSON.stringify(p))),read:get};
+ return FieldHandover.build(input,window.JSZip)
+}
+async function restoreCloudPackageExact(file){
+ if(!file)throw Error(M('Không có gói đồng bộ.','No sync package supplied.','没有同步包。'));
+ const pack=await FieldHandover.inspect(file,window.JSZip),sourceName=String(pack.manifest?.project?.name||'').trim()||'Công trình';
+ let target=(app.state.projects||[]).findIndex(p=>String(p?.name||'').trim().toLocaleLowerCase()===sourceName.toLocaleLowerCase());
+ if(target<0){app.state.projects=Array.isArray(app.state.projects)?app.state.projects:[];app.state.projects.push({name:sourceName,folderUrl:'',drawingFolderUrl:''});target=app.state.projects.length-1}
+ const oldPlans=registry().filter(p=>p.project===target),oldPlanIds=new Set(oldPlans.map(p=>p.id)),oldPins=pins().filter(p=>p.project===target||oldPlanIds.has(p.planId));
+ for(const meta of oldPlans)await removeStored('plans',meta.id).catch(()=>{});
+ for(const pin of oldPins){await removeStored('photos',pin.id).catch(()=>{});await removeStored('photos',pin.id+':after').catch(()=>{})}
+ const newPlans=[],newPins=[];
+ for(const meta of pack.manifest.plans){
+   const payload=pack.payload.get(meta.file);if(!payload?.bytes)throw Error(M('Gói đồng bộ thiếu dữ liệu PDF.','Sync package is missing PDF data.','同步包缺少 PDF 数据。'));
+   const plan={id:String(meta.id),name:String(meta.name||'Drawing'),project:target,pages:Number(meta.pages)||1,handoverOriginId:meta.originId||''};
+   await put('plans',{id:plan.id,bytes:payload.bytes.slice().buffer,name:plan.name,project:target});newPlans.push(plan)
+ }
+ for(const raw of pack.manifest.pins||[]){
+   const pin=JSON.parse(JSON.stringify(raw));delete pin.before;delete pin.after;delete pin.base;pin.project=target;pin.photoName='';pin.afterName='';
+   if(raw.before){const media=pack.payload.get(raw.before.file);if(media?.bytes){pin.photoName=String(raw.before.name||raw.before.file.split('/').pop());await put('photos',{id:pin.id,blob:new Blob([media.bytes],{type:media.mime}),fileName:pin.photoName})}}
+   if(raw.after){const media=pack.payload.get(raw.after.file);if(media?.bytes){pin.afterName=String(raw.after.name||raw.after.file.split('/').pop());await put('photos',{id:pin.id+':after',blob:new Blob([media.bytes],{type:media.mime}),fileName:pin.afterName})}}
+   newPins.push(pin)
+ }
+ app.state.planRegistry=[...registry().filter(p=>p.project!==target),...newPlans];
+ app.state.planPins=[...pins().filter(p=>p.project!==target&&!oldPlanIds.has(p.planId)),...newPins];
+ app.state.planActive=app.state.planActive&&typeof app.state.planActive==='object'?app.state.planActive:{};app.state.planActive[target]=newPlans[0]?.id||null;app.persist();
+ if(target===project()){pdfDoc=null;currentPlan=null;selectedPin=null;activePin=null;updatePlanLiveNote('',false);$('planDetail').classList.add('hidden');planOptions();if(newPlans[0]?.id)await loadPlan(newPlans[0].id);else renderPins()}
+ syncProjectSelectors(project());window.SiteCamSharedPlanLibrary?.refreshProject?.();window.fieldCloud?.projectChanged?.();
+ return {projectIndex:target,projectName:sourceName,plans:newPlans.length,pins:newPins.length,photos:(pack.photoCount||0)}
+}
+async function receiveCloudPackage(file){return window.fieldHandoverUI.receive(file)}
+window.fieldPlan={close:closePlan,get activePin(){return activePin},photoSaved,getRecord:get,putRecord:put,removeRecord:removeStored,importPdfFile:importPdf,createCloudPackage,restoreCloudPackageExact,receiveCloudPackage,refreshCloud(){summary();if(!dialog.classList.contains('hidden')){planOptions();if(activeId()&&(!pdfDoc||currentPlan?.id!==activeId()))loadPlan(activeId());else renderPins()}},renderLanguage:localize,projectChanged(){summary();window.fieldCloud?.projectChanged();refreshPlanProjectSelect();window.SiteCamSharedPlanLibrary?.refreshProject?.();if(!dialog.classList.contains('hidden')){pdfDoc=null;currentPlan=null;closePinNoteEditor(false);selectedPin=null;updatePlanLiveNote('',false);$('planDetail').classList.add('hidden');planOptions();if(activeId())loadPlan(activeId())}}};if(!app.state.pinSeverityStyleV35){app.state.planPinStyle={...app.state.planPinStyle,shape:'severity',criticalShape:'triangle'};app.state.pinSeverityStyleV35=true;app.persist()}localize();summary();
+})();
+
+</script>
+
+<script>
+/* v6.3.4 Web/PWA: queued photos are saved in browser-safe batches.
+   Large queues are split into smaller share groups; if file sharing is unavailable,
+   the whole queue can still be downloaded as one ZIP file. */
+(()=>{
+  if(window.AndroidFileSaver)return;
+  const box=document.createElement('div');box.className='web-photo-save-tray';box.setAttribute('role','status');
+  const text=document.createElement('span'),save=document.createElement('button'),close=document.createElement('button');
+  save.type='button';close.type='button';close.className='dismiss';close.setAttribute('aria-label','Xóa ảnh chờ');close.textContent='×';
+  box.append(text,save,close);
+  const anchor=document.querySelector('.camera-save-row')||document.querySelector('.camera-mode-labels');
+  if(anchor?.parentNode)anchor.insertAdjacentElement('afterend',box);else document.body.append(box);
