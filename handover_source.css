@@ -1,0 +1,12 @@
+.handover-source-modal{position:fixed;inset:0;z-index:10050;background:rgba(3,12,24,.58);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}
+.handover-source-modal.hidden{display:none!important}
+.handover-source-card{width:min(520px,100%);max-height:calc(100vh - 36px);overflow:auto;background:#fff;border-radius:18px;padding:18px;box-sizing:border-box;box-shadow:0 18px 60px rgba(0,0,0,.32)}
+.handover-source-card h3{margin:0 0 14px;font-size:22px;color:#17324d}
+.handover-source-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.handover-source-card button,.handover-source-card select{min-height:50px;border-radius:12px;border:1px solid #b8d5e8;background:#eef8ff;color:#126c9d;font-weight:700;font-size:16px;padding:10px 12px;box-sizing:border-box}
+.handover-source-card button.primary{background:#168fe5;color:#fff;border-color:#168fe5}
+.handover-drive-picker{margin-top:14px;display:grid;gap:10px}
+.handover-drive-picker.hidden{display:none!important}
+.handover-drive-status{font-size:14px;color:#617384;min-height:20px;white-space:normal}
+.handover-source-close{margin-top:12px;width:100%}
+@media(max-width:560px){.handover-source-actions{grid-template-columns:1fr}.handover-source-card{padding:14px}.handover-source-card h3{font-size:20px}}

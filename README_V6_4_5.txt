@@ -1,4 +1,4 @@
-SiteCam Web v6.4.5 
+SiteCam Web v6.4.5
 
 Thay doi mau ghim:
 - Tat ca ghim mac dinh mau do khi chua co anh cai thien / anh sau sua.
