@@ -1832,7 +1832,7 @@ function rapidQueueLimit(){return state.photoQuality==='high'?3:state.photoQuali
 // for text/logo, not for the raw scene. Both single-save and burst use this function.
 function buildPhotoCanvas(raw,ratio,rotation,profile,capturedFacing='environment'){
  const sw=raw.videoWidth||raw.naturalWidth||raw.width,sh=raw.videoHeight||raw.naturalHeight||raw.height;
- const saveRotation=Math.abs(Number(rotation))===90?-90:Number(rotation)||0;
+ const saveRotation=Math.abs(Number(rotation))===90?90:Number(rotation)||0;
  const spec=photoGeometry.outputSpec(sw,sh,ratio,saveRotation,profile.output);
  const canvas=document.createElement('canvas');canvas.width=spec.width;canvas.height=spec.height;
  const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas 2D unavailable');
@@ -1840,7 +1840,7 @@ function buildPhotoCanvas(raw,ratio,rotation,profile,capturedFacing='environment
  try{
    if(Math.abs(spec.rotation)===90){
      // Portrait-locked UI + physically landscape phone:
-     // SAVE rule is fixed at -90 degrees. The live preview itself stays portrait.
+     // SAVE rule is fixed at +90 degrees for this device orientation. The live preview itself stays portrait.
      // Rotate the scene once into a true landscape JPEG, then draw the watermark
      // directly on that final landscape canvas so text/logo are horizontal.
      ctx.save();photoGeometry.beginUpright(ctx,spec.baseW,spec.baseH,spec.rotation);
@@ -2015,7 +2015,7 @@ $('stage').addEventListener('pointerup',releasePointer);$('stage').addEventListe
 $('resetView').onclick=()=>{state.zoom=1;state.brightness=100;focusPoint={x:.5,y:.5};$('zoom').value=1;$('brightness').value=100;$('zoomValue').textContent='1.0×';$('brightnessValue').textContent='100%';viewMeter();persist()};
 $('stage').addEventListener('click',async e=>{if(Date.now()<suppressFocusUntil||e.target.closest('button')||e.target===$('stampTouch')||e.target===$('markerTouch')||$('previewCanvas').classList.contains('hidden'))return;const r=previewRect,stageBox=$('stage').getBoundingClientRect();if(!r)return;const nx=(e.clientX-stageBox.left-r.left)/r.width,ny=(e.clientY-stageBox.top-r.top)/r.height;if(nx<0||nx>1||ny<0||ny>1)return;const rawPoint=photoGeometry.scenePoint(nx,ny,stampRotation(),source?'environment':activeCameraFacing),z=Math.max(1,Number(state.zoom)||1),fx=Math.max(0,Math.min(1,focusPoint.x-1/(2*z)+rawPoint.x/z)),fy=Math.max(0,Math.min(1,focusPoint.y-1/(2*z)+rawPoint.y/z));focusPoint={x:fx,y:fy};const ring=$('focusRing');ring.style.left=(e.clientX-$('stage').getBoundingClientRect().left)+'px';ring.style.top=(e.clientY-$('stage').getBoundingClientRect().top)+'px';ring.classList.remove('hidden');ring.style.animation='none';void ring.offsetWidth;ring.style.animation='';setTimeout(()=>ring.classList.add('hidden'),1300);renderPreview();if(stream){const track=stream.getVideoTracks()[0];try{await track.applyConstraints({advanced:[{pointsOfInterest:[{x:fx,y:fy}],focusMode:'single-shot'}]})}catch(_){}status('focusTry')}else status('focusPhoto')});
 function setPaidMode(paid){const slot=$('adSlot');slot.classList.toggle('paid',paid===true);if(paid===true)slot.replaceChildren()}
-window.DHApp={cameraGeometryVersion:'6.5.5',cameraRenderState,get state(){return state},persist,translate:tr,setLanguage(lang){if(!dictionaries[lang])return;state.lang=lang;persist();renderControls()},openSettings:openEditor,closeSettings:closeEditor,orientationChanged,setPaidMode,renderProjects:renderSites,openCamera:start,choosePhoto:()=>$('file').click(),linkPin(code){state.marker.enabled=true;state.marker.text=String(code);shotCount=String(code);persist();renderMarkerControls()},status};installOrientationSync();syncPhotoOrientation();renderControls();setInterval(()=>{if(!shotAt)renderStamp()},30000);
+window.DHApp={cameraGeometryVersion:'6.5.8',cameraRenderState,get state(){return state},persist,translate:tr,setLanguage(lang){if(!dictionaries[lang])return;state.lang=lang;persist();renderControls()},openSettings:openEditor,closeSettings:closeEditor,orientationChanged,setPaidMode,renderProjects:renderSites,openCamera:start,choosePhoto:()=>$('file').click(),linkPin(code){state.marker.enabled=true;state.marker.text=String(code);shotCount=String(code);persist();renderMarkerControls()},status};installOrientationSync();syncPhotoOrientation();renderControls();setInterval(()=>{if(!shotAt)renderStamp()},30000);
 if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',installCameraAutostart,{once:true});
 else installCameraAutostart();
 })();
