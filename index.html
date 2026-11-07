@@ -1599,13 +1599,39 @@ function rotateBounds(b,w,h,angle){return photoGeometry.rotateBounds(b,w,h,angle
 function rotationDelta(dx,dy,angle){return photoGeometry.rotationDelta(dx,dy,angle)}
 function syncPhotoOrientation(){const angle=stampRotation();$('stage').classList.remove('landscape');const meter=$('stageMeter');meter.style.transform=`rotate(${angle}deg)`;meter.style.bottom=angle?`${Math.max(12,(meter.offsetWidth-meter.offsetHeight)/2+12)}px`:''}
 function orientationChanged(angle){if(![-90,0,90,180].includes(angle)||angle===liveRotation)return;liveRotation=angle;selectStamp(false);syncPhotoOrientation();requestAnimationFrame(renderPreview)}
+let physicalRotation=null,physicalRotationAt=0,physicalCandidate=null,physicalCandidateHits=0;
+function commitPhysicalRotation(angle){
+ if(![-90,0,90,180].includes(angle))return;
+ if(angle!==physicalCandidate){physicalCandidate=angle;physicalCandidateHits=1;return}
+ physicalCandidateHits++;
+ if(physicalCandidateHits<3)return;
+ physicalRotation=angle;physicalRotationAt=Date.now();orientationChanged(angle);
+}
+function onPhysicalOrientation(e){
+ const beta=Number(e?.beta),gamma=Number(e?.gamma);
+ if(!Number.isFinite(beta)||!Number.isFinite(gamma))return;
+ // Ignore nearly-flat/ambiguous positions. When the phone is held for a photo,
+ // gamma dominates in landscape and beta dominates in portrait.
+ const ab=Math.abs(beta),ag=Math.abs(gamma);
+ if(ag>=48 && ag>ab*.72){commitPhysicalRotation(gamma>0?90:-90);return}
+ if(ab>=50 && ab>ag*1.15){commitPhysicalRotation(beta>=0?0:180)}
+}
+function onPhysicalMotion(e){
+ // Fallback for Android WebViews that do not provide useful beta/gamma values.
+ const g=e?.accelerationIncludingGravity;if(!g)return;
+ const x=Number(g.x),y=Number(g.y);if(!Number.isFinite(x)||!Number.isFinite(y))return;
+ const ax=Math.abs(x),ay=Math.abs(y);if(Math.hypot(x,y)<5)return;
+ if(ax>=6 && ax>ay*1.35){commitPhysicalRotation(x>0?90:-90);return}
+ if(ay>=6 && ay>ax*1.35){commitPhysicalRotation(y>=0?0:180)}
+}
 function currentDeviceRotation(){
+ // A fresh gravity/orientation reading reflects how the phone is actually held,
+ // even when Android screen rotation is locked.
+ if(physicalRotation!=null && Date.now()-physicalRotationAt<1800)return physicalRotation;
  let angle=null;
  try{if(Number.isFinite(screen?.orientation?.angle))angle=Number(screen.orientation.angle)}catch(_){}
  if(angle==null)try{if(Number.isFinite(window.orientation))angle=Number(window.orientation)}catch(_){}
  if(angle!=null){angle=((angle%360)+360)%360;if(angle===270)return -90;if(angle===180)return 180;if(angle===90)return 90;return 0}
- // Fallback for browsers that expose orientation state but not a numeric angle.
- // Either quarter-turn is sufficient to produce a landscape 4:3 photo; use +90.
  try{if(matchMedia('(orientation: landscape)').matches)return 90}catch(_){}
  return innerWidth>innerHeight?90:0;
 }
@@ -1617,6 +1643,8 @@ function installOrientationSync(){
  window.addEventListener('orientationchange',syncDeviceRotation,{passive:true});
  window.addEventListener('resize',syncDeviceRotation,{passive:true});
  window.visualViewport?.addEventListener?.('resize',syncDeviceRotation,{passive:true});
+ try{window.addEventListener('deviceorientation',onPhysicalOrientation,{passive:true})}catch(_){}
+ try{window.addEventListener('devicemotion',onPhysicalMotion,{passive:true})}catch(_){}
 }
 function renderStamp(){$('stamp').className='stamp '+(state.mode==='transparent'?'transparent':state.mode==='poster'?'poster':state.mode==='solid'?'poster':'');$('stamp').style.width=state.width+'%';$('stamp').style.setProperty('--stamp-scale',String(state.scale/100));$('stampHead').style.background=state.mode==='transparent'?`linear-gradient(90deg, ${state.color}b3, transparent)`:state.mode==='semi'?state.color+'aa':state.color;$('stampBody').style.background=state.mode==='solid'?'#fff':state.mode==='semi'?`rgba(255,255,255,${state.opacity/100})`:'transparent';$('stampTitle').textContent=state.enabled.project?clean(state.values.project)||'DONG HUI':'';$('stampLogo').style.display=state.enabled.logo?'grid':'none';$('stampLogo').style.setProperty('--logo-aspect',logoImage?String(logoImage.naturalWidth/Math.max(1,logoImage.naturalHeight)):'1.5');$('stampBody').textContent=lines().join('\n');$('stampBody').style.display=lines().length?'block':'none';$('stampCount').textContent=state.enabled.count?`${tr('count')}: ${stampNumber()}`:'';$('stampCount').style.display=state.enabled.count?'block':'none';$('stampHead').style.display=(state.enabled.project||state.enabled.logo)?'flex':'none';$('stampLogo').replaceChildren();if(logoImage){const img=logoImage.cloneNode();$('stampLogo').append(img)}else $('stampLogo').textContent='DH';const sample=$('styleSample');if(sample){sample.className=$('stamp').className;sample.style.width=state.width+'%';sample.style.setProperty('--stamp-scale',String(state.scale/100));sample.replaceChildren();const sh=document.createElement('div');sh.className='stamp-head';sh.style.background=state.mode==='transparent'?`linear-gradient(90deg, ${state.color}b3, transparent)`:state.mode==='semi'?state.color+'aa':state.color;const sl=document.createElement('div');sl.className='stamp-logo';sl.style.setProperty('--logo-aspect',logoImage?String(logoImage.naturalWidth/Math.max(1,logoImage.naturalHeight)):'1.5');sl.textContent='DH';if(logoImage){sl.replaceChildren(logoImage.cloneNode())}sh.append(sl);const st=document.createElement('div');st.className='stamp-title';st.textContent=clean(state.values.project)||'DONG HUI';sh.append(st);sample.append(sh);const sb=document.createElement('div');sb.className='stamp-body';sb.style.background=state.mode==='semi'?`rgba(255,255,255,${state.opacity/100})`:state.mode==='solid'||state.mode==='poster'?'#fff':'transparent';sb.textContent=`${tr('area')}: A1\n${tr('date')}: ${nowText()}`;sample.append(sb);const sc=document.createElement('div');sc.className='stamp-count';sc.textContent=`${tr('count')}: ${stampNumber()}`;sample.append(sc)}}
 // v62 capture profiles. WebView can only use lenses/resolutions exposed by Android's media stack.
@@ -1886,7 +1914,9 @@ function renderPreview(){
  const dpr=Math.min(2,window.devicePixelRatio||1),cw=Math.round(stage.clientWidth*dpr),ch=Math.round(stage.clientHeight*dpr);
  if(c.width!==cw||c.height!==ch){c.width=cw;c.height=ch}
  const ctx=c.getContext('2d');
- const fitRect=photoGeometry.previewFit(cw,ch,source?(sourceRatio||cameraRatio()):cameraRatio());
+ const previewAngle=stampRotation(),baseRatio=source?(sourceRatio||cameraRatio()):cameraRatio();
+ const previewRatio=Math.abs(previewAngle)===90?1/baseRatio:baseRatio;
+ const fitRect=photoGeometry.previewFit(cw,ch,previewRatio);
  const dw=fitRect.w,dh=fitRect.h,dx=fitRect.x,dy=fitRect.y;
  photoGeometry.paintPreviewMatte(ctx,cw,ch,fitRect);
  ctx.save();ctx.translate(dx,dy);paint(ctx,raw,dw,dh,stampRotation(),frameFacing(raw));ctx.restore();
@@ -1968,7 +1998,7 @@ $('stage').addEventListener('pointerup',releasePointer);$('stage').addEventListe
 $('resetView').onclick=()=>{state.zoom=1;state.brightness=100;focusPoint={x:.5,y:.5};$('zoom').value=1;$('brightness').value=100;$('zoomValue').textContent='1.0×';$('brightnessValue').textContent='100%';viewMeter();persist()};
 $('stage').addEventListener('click',async e=>{if(Date.now()<suppressFocusUntil||e.target.closest('button')||e.target===$('stampTouch')||e.target===$('markerTouch')||$('previewCanvas').classList.contains('hidden'))return;const r=previewRect,stageBox=$('stage').getBoundingClientRect();if(!r)return;const nx=(e.clientX-stageBox.left-r.left)/r.width,ny=(e.clientY-stageBox.top-r.top)/r.height;if(nx<0||nx>1||ny<0||ny>1)return;const rawPoint=photoGeometry.scenePoint(nx,ny,stampRotation(),source?'environment':activeCameraFacing),z=Math.max(1,Number(state.zoom)||1),fx=Math.max(0,Math.min(1,focusPoint.x-1/(2*z)+rawPoint.x/z)),fy=Math.max(0,Math.min(1,focusPoint.y-1/(2*z)+rawPoint.y/z));focusPoint={x:fx,y:fy};const ring=$('focusRing');ring.style.left=(e.clientX-$('stage').getBoundingClientRect().left)+'px';ring.style.top=(e.clientY-$('stage').getBoundingClientRect().top)+'px';ring.classList.remove('hidden');ring.style.animation='none';void ring.offsetWidth;ring.style.animation='';setTimeout(()=>ring.classList.add('hidden'),1300);renderPreview();if(stream){const track=stream.getVideoTracks()[0];try{await track.applyConstraints({advanced:[{pointsOfInterest:[{x:fx,y:fy}],focusMode:'single-shot'}]})}catch(_){}status('focusTry')}else status('focusPhoto')});
 function setPaidMode(paid){const slot=$('adSlot');slot.classList.toggle('paid',paid===true);if(paid===true)slot.replaceChildren()}
-window.DHApp={cameraGeometryVersion:'6.5.3',cameraRenderState,get state(){return state},persist,translate:tr,setLanguage(lang){if(!dictionaries[lang])return;state.lang=lang;persist();renderControls()},openSettings:openEditor,closeSettings:closeEditor,orientationChanged,setPaidMode,renderProjects:renderSites,openCamera:start,choosePhoto:()=>$('file').click(),linkPin(code){state.marker.enabled=true;state.marker.text=String(code);shotCount=String(code);persist();renderMarkerControls()},status};installOrientationSync();syncPhotoOrientation();renderControls();setInterval(()=>{if(!shotAt)renderStamp()},30000);
+window.DHApp={cameraGeometryVersion:'6.5.4',cameraRenderState,get state(){return state},persist,translate:tr,setLanguage(lang){if(!dictionaries[lang])return;state.lang=lang;persist();renderControls()},openSettings:openEditor,closeSettings:closeEditor,orientationChanged,setPaidMode,renderProjects:renderSites,openCamera:start,choosePhoto:()=>$('file').click(),linkPin(code){state.marker.enabled=true;state.marker.text=String(code);shotCount=String(code);persist();renderMarkerControls()},status};installOrientationSync();syncPhotoOrientation();renderControls();setInterval(()=>{if(!shotAt)renderStamp()},30000);
 if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',installCameraAutostart,{once:true});
 else installCameraAutostart();
 })();
