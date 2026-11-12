@@ -3386,3 +3386,37 @@ window.androidSaveResult=function(ok,message){
 })();
 </script>
 </body></html>
+
+<style id="plan-full-height-v665">
+/* v6.6.5: let drawing viewport fill all remaining screen height */
+#planDialog.plan-dialog{
+  display:flex!important;
+  flex-direction:column!important;
+  height:100dvh!important;
+  max-height:100dvh!important;
+  overflow:hidden!important;
+}
+#planDialog.hidden{display:none!important}
+#planDialog>.plan-top,
+#planDialog>.plan-advanced-shell,
+#planDialog>.plan-tools,
+#planDialog>.plan-live-note{
+  flex:0 0 auto;
+}
+#planDialog>.plan-scroll{
+  flex:1 1 auto!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:auto!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+#planDialog.plan-tools-collapsed>.plan-scroll{
+  flex:1 1 auto!important;
+  min-height:0!important;
+}
+@media(max-width:760px){
+  #planDialog>.plan-scroll{padding:10px!important}
+}
+</style>
