@@ -2381,7 +2381,8 @@ fr:'Style du repère|Forme|Taille|Opacité|Cercle|Carré arrondi|Contour transpa
 de:'Markierungsstil|Form|Größe|Deckkraft|Kreis|Abgerundetes Quadrat|Transparente Kontur|Nur Text',
 ru:'Стиль метки|Форма|Размер|Непрозрачность|Круг|Скруглённый квадрат|Прозрачный контур|Только текст'};
 function pinStyle(){const p=app.state.planPinStyle||{};return {shape:['severity','circle','rounded','outline','text'].includes(p.shape)?p.shape:'severity',criticalShape:p.criticalShape==='star'?'star':'triangle',size:Math.max(14,Math.min(56,Number(p.size)||24)),opacity:Math.max(20,Math.min(100,Number(p.opacity)||90))}}
-function pinVisual(pin){const p=pinStyle(),color=pin.afterName?'#168b52':'#dc2626';if(p.shape!=='severity')return {...p,color};const severity=pin.severity||'medium';return {...p,shape:severity==='critical'?p.criticalShape:severity==='high'?'square':'circle',color}}
+function pinIsOverdue(pin){if(pin?.afterName)return false;const due=String(pin?.deadline||expectedCompletionISO(pin)||'').slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(due))return false;return due<localDate()}
+function pinVisual(pin){const p=pinStyle(),color=pin.afterName?'#168b52':pinIsOverdue(pin)?'#7c3aed':'#dc2626';if(p.shape!=='severity')return {...p,color};const severity=pin.severity||'medium';return {...p,shape:severity==='critical'?p.criticalShape:severity==='high'?'square':'circle',color}}
 function renderPinStyleControls(){const p=pinStyle();$('pinShape').value=p.shape;$('pinCriticalShape').value=p.criticalShape;$('pinSize').value=p.size;$('pinOpacity').value=p.opacity;$('pinSizeValue').textContent=p.size+' px';$('pinOpacityValue').textContent=p.opacity+'%'}
 function localizePinStyle(){const t=(pinStyleLabels[app.state.lang]||pinStyleLabels.en).split('|');for(const [id,i] of [['pinStyleSummary',0],['pinShapeLabel',1],['pinSizeLabel',2],['pinOpacityLabel',3]])$(id).textContent=t[i];$('pinShape').options[0].textContent=M('Theo mức độ lỗi','By severity','按严重程度');[...$('pinShape').options].slice(1).forEach((o,i)=>o.textContent=t[i+4]);$('pinCriticalShapeLabel').textContent=M('Lỗi nghiêm trọng','Critical issue','严重问题');$('pinCriticalShape').options[0].textContent=M('Tam giác','Triangle','三角形');$('pinCriticalShape').options[1].textContent=M('Sao 5 cánh','5-point star','五角星');renderPinStyleControls()}
 function paintPin(ctx,pin,cx,cy,size,visualOverride=null){
@@ -2469,7 +2470,7 @@ let pinNoteEditor=null,pinNoteViewportHandler=null;
 function formatQuickNoteTemplate(pin){
  const sevCode=pin.quickSeverityCode||({low:'A',medium:'B',high:'C',critical:'D'}[pin.severity]||'A');
  const repeat=String(Math.max(1,Number(pin.repeats)||1));
- const repair=pin.quickDeadlineText||((Number(pin.repairDays)||1)+' ngày');
+ const repair=String(Math.max(1,Number(pin.repairDays)||parseInt(pin.quickDeadlineText,10)||1));
  return `Miêu tả lỗi: ${pin.note||''}\nThầu phụ: ${pin.contractor||''}\nSố lần lặp lại: ${repeat}\nThời gian cải thiện: ${repair}\nMức độ lỗi: ${sevCode}`
 }
 function closePinNoteEditor(save=false){if(!pinNoteEditor)return;const {root,fields,pin,original}=pinNoteEditor;if(save&&pin){
@@ -2477,7 +2478,7 @@ function closePinNoteEditor(save=false){if(!pinNoteEditor)return;const {root,fie
  pin.note=issue;pin.contractor=contractor;pin.repeats=repeat;pin.quickSeverityCode=sevCode;pin.severity=sev;
  const repairNormalized=repairText.normalize('NFC').trim().replace(/\s+/g,' ');
  const daysMatch=repairNormalized.match(/^(\d{1,3})\s*(?:ngày|ngay|day|days)?$/iu);
- if(daysMatch){const n=Math.max(1,Math.min(365,Number(daysMatch[1])||1));pin.repairDays=n;pin.quickDeadlineText=n+' ngày';pin.deadline=addDaysISO(pinFoundDate(pin),n);fields.repair.value=String(n)}else{pin.quickDeadlineText=repairText;const iso=quickDeadlineISO(repairText,pin);if(iso)pin.deadline=iso}
+ if(daysMatch){const n=Math.max(1,Math.min(365,Number(daysMatch[1])||1));pin.repairDays=n;pin.quickDeadlineText=String(n);pin.deadline=addDaysISO(pinFoundDate(pin),n);fields.repair.value=String(n)}else{const n=Math.max(1,Math.min(365,parseInt(repairText,10)||1));pin.repairDays=n;pin.quickDeadlineText=String(n);pin.deadline=addDaysISO(pinFoundDate(pin),n);fields.repair.value=String(n)}
  pin.quickNoteRaw=formatQuickNoteTemplate(pin);$('pinNote').value=pin.quickNoteRaw;$('pinContractor').value=pin.contractor||'';renderIssueSliders(pin);app.persist();window.fieldCloud?.pinChanged(pin);updatePlanLiveNote(pin.note||'',false);renderPins();notice(M('Đã lưu ghi chú và cập nhật dữ liệu lỗi.','Note saved and issue fields updated.','备注已保存并更新问题字段。'))
  }else{updatePlanLiveNote(original||pin?.note||'',false)}if(pinNoteViewportHandler&&window.visualViewport)visualViewport.removeEventListener('resize',pinNoteViewportHandler);pinNoteViewportHandler=null;root.remove();pinNoteEditor=null}
 function positionPinNoteEditor(){if(!pinNoteEditor)return;const vv=window.visualViewport,root=pinNoteEditor.root;if(vv){const top=Math.max(vv.offsetTop+8,vv.offsetTop+vv.height-root.offsetHeight-12);root.style.top=top+'px'}else{root.style.top='auto';root.style.bottom='12px'}}
@@ -2487,10 +2488,10 @@ function openPinNoteEditor(pin){closePinNoteEditor(false);notice('');const root=
   ['issue',M('Miêu tả lỗi:','Issue:','问题描述：'),pin.note||'',M('Nhập nội dung lỗi','Enter issue','输入问题内容')],
   ['contractor',M('Thầu phụ:','Subcontractor:','分包单位：'),pin.contractor||'',M('Tên thầu phụ','Subcontractor name','分包单位名称')],
   ['repeat',M('Số lần lặp lại:','Repeat count:','重复次数：'),String(Math.max(1,Number(pin.repeats)||1)),'1'],
-  ['repair',M('Thời gian cải thiện:','Rectification time:','整改期限：'),pin.quickDeadlineText||((Number(pin.repairDays)||1)+' ngày'),M('Ví dụ: 1 ngày','Example: 1 day','例如：1天')],
+  ['repair',M('Thời gian cải thiện:','Rectification time:','整改期限：'),String(Math.max(1,Number(pin.repairDays)||parseInt(pin.quickDeadlineText,10)||1)),'1'],
   ['severity',M('Mức độ lỗi:','Severity:','问题等级：'),pin.quickSeverityCode||({low:'A',medium:'B',high:'C',critical:'D'}[pin.severity]||'A'),'A/B/C/D']
  ];
- const fields={};for(const [key,label,value,placeholder] of specs){const row=document.createElement('div');row.className='pin-note-row';const lab=document.createElement('label');lab.textContent=label;const input=document.createElement('input');input.type=key==='repeat'?'number':'text';if(key==='repeat'){input.min='1';input.max='30';input.inputMode='numeric'}if(key==='severity'){input.maxLength=1;input.autocapitalize='characters'}input.value=value;input.placeholder=placeholder;row.append(lab,input);form.append(row);fields[key]=input}
+ const fields={};for(const [key,label,value,placeholder] of specs){const row=document.createElement('div');row.className='pin-note-row';const lab=document.createElement('label');lab.textContent=label;const input=document.createElement('input');input.type=(key==='repeat'||key==='repair')?'number':'text';if(key==='repeat'){input.min='1';input.max='30';input.inputMode='numeric'}if(key==='repair'){input.min='1';input.max='365';input.step='1';input.inputMode='numeric'}if(key==='severity'){input.maxLength=1;input.autocapitalize='characters'}input.value=value;input.placeholder=placeholder;row.append(lab,input);form.append(row);fields[key]=input}
  const tip=document.createElement('div');tip.className='pin-note-editor-tip';tip.textContent=M('A = Nhẹ · B = Trung bình · C = Nặng · D = Nghiêm trọng. Nhấn Enter để chuyển xuống mục tiếp theo.','A = Low · B = Medium · C = High · D = Critical. Press Enter for the next field.','A=轻微 · B=中等 · C=严重 · D=特别严重。按回车进入下一项。');
  const actions=document.createElement('div');actions.className='pin-note-editor-actions';const cancel=document.createElement('button');cancel.type='button';cancel.className='cancel';cancel.textContent=M('Hủy','Cancel','取消');const save=document.createElement('button');save.type='button';save.className='save';save.textContent=M('Lưu','Save','保存');actions.append(cancel,save);root.append(title,form,tip,actions);document.body.append(root);pinNoteEditor={root,fields,pin,original:pin.note||''};cancel.onclick=()=>closePinNoteEditor(false);save.onclick=()=>closePinNoteEditor(true);
  const order=[fields.issue,fields.contractor,fields.repeat,fields.repair,fields.severity];order.forEach((input,i)=>{input.addEventListener('input',()=>{if(input===fields.severity)input.value=input.value.toUpperCase().replace(/[^ABCD]/g,'').slice(0,1);updatePlanLiveNote(fields.issue.value,false)});input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(i<order.length-1){order[i+1].focus();order[i+1].select?.()}else closePinNoteEditor(true)}})});
@@ -2679,7 +2680,7 @@ function reportDetailLines(t,p){
     [t.headers[3],sev,{low:'#1b8054',medium:'#c47c00',high:'#d45120',critical:'#bd2432'}[p.severity]||'#c47c00','severity'],
     [t.headers[7],String(p.repeats||1),Number(p.repeats)>1?'#b64b18':'#1775aa','repeat'],
     [t.headers[6],reportDate(pinFoundDate(p)),'#235d91','found'],
-    [t.headers[8],p.quickDeadlineText||reportDate(expectedCompletionISO(p)),'#b76b00','deadline'],
+    [t.headers[8],String(repairDaysFor(p))+issueUXText(5),'#b76b00','deadline'],
     [t.headers[10],reportDate(p.resolvedAt),p.resolvedAt?'#16804d':'#a44439','completed'],
     [t.headers[5],p.engineer||'—','#334155','engineer']
   ];

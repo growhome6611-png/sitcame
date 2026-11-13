@@ -1,4 +1,4 @@
-const CACHE = 'sitecam-v6.6.9';
+const CACHE = 'sitecam-v6.6.10';
 const APP_SHELL = [
   '/', '/index.html', '/manifest.webmanifest',
   '/camera_ui.css','/camera_ui.js','/contractor_stats.js','/web_drive_config.js','/drive_photos.js',
